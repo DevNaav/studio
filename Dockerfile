@@ -8,6 +8,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY patches ./patches
 
+# Normalize line endings of the patch file to Unix format (LF) before running npm ci
+RUN node -e "const fs = require('fs'); const file = 'patches/ansi-color+0.2.1.patch'; if (fs.existsSync(file)) { fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/\r/g, '')); }"
+
 RUN npm ci
 
 # Stage 2: Rebuild the source code only when needed

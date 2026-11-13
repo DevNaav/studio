@@ -77,9 +77,12 @@
     "@types/uuid": "^9.0.8",
     "postcss": "^8.5.32",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "5.9.3"
   },
   "overrides": {
-    "@grpc/grpc-js": "^1.14.7"
+    "@grpc/grpc-js": "^1.14.7",
+    "@vercel/cli-config": {
+      "zod": "^4.6.7"
+    }
   }
 }

@@ -1,0 +1,78 @@
+# Runs on every push to main and every pull request.
+# Vercel deploys main automatically; this pipeline tells you (and blocks PRs) when a change
+# doesn't type-check, doesn't build, adds a known-vulnerable dependency, or contains a secret.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Type-check and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholder only: the build needs a value to compile. The real key lives in Vercel.
+          NEXT_PUBLIC_FIREBASE_API_KEY: ci-placeholder-key
+          NEXT_TELEMETRY_DISABLED: 1
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # Fails on high/critical vulnerabilities in packages that ship to production.
+      # Reviewed exceptions are listed (with reasons) in audit-ci.jsonc.
+      - name: Audit production dependencies
+        run: npx --yes audit-ci@7 --config audit-ci.jsonc
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan for leaked keys and passwords
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

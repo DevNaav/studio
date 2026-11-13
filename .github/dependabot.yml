@@ -1,0 +1,26 @@
+# Opens pull requests to keep dependencies up to date. CI runs on each one,
+# so you only merge updates that still build.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for all minor/patch updates instead of dozens.
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Major upgrades need manual testing; Dependabot still opens security fixes.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

@@ -40,3 +40,7 @@ pnpm-debug.log*
 
 # Files uploaded through the app (stored on the server, not in git)
 /uploads/
+
+# Local build scratch and TypeScript cache
+/tmp/
+*.tsbuildinfo

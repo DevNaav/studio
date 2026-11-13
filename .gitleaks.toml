@@ -1,0 +1,9 @@
+# Secret scanning rules for CI (gitleaks). Uses the full default rule set.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Old build output committed by mistake (removed); it only contains the public Firebase web config."
+paths = [
+  '''^tmp/\.next/''',
+]

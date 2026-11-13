@@ -1,0 +1,17 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  // Fail CI on high or critical vulnerabilities in production dependencies.
+  "high": true,
+  "skip-dev": true,
+  "package-manager": "npm",
+  // Reviewed exceptions. Remove each one as soon as a fixed version can be installed.
+  "allowlist": [
+    // zod 3.x: memory exhaustion when validating huge constrained arrays.
+    // No fixed 3.x release; genkit and the form resolvers require zod 3.
+    // Server-side zod use is only in the AI flows, which are disabled (no Gemini key).
+    "GHSA-mrhx-c7xc-m3w5",
+    // OpenTelemetry Jaeger propagator DoS. Pulled in (pinned) by genkit; this app does not
+    // configure Jaeger tracing, so the vulnerable code path is never used.
+    "GHSA-45rx-2jwx-cxfr"
+  ]
+}

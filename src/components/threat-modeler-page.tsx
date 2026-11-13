@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, ShieldAlert, User, Bug, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { identifyThreats } from '@/ai/flows/identify-threats-flow';
 import { getIdTokenOrThrow } from '@/lib/id-token';
+import { isAiEnabled } from '@/app/actions/ai-status';
 import { IdentifyThreatsOutput } from '@/lib/threats-types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -37,10 +38,13 @@ export function ThreatModelerPage() {
       setThreats(result);
     } catch (error) {
       console.error('Threat modeling failed:', error);
+      const enabled = await isAiEnabled().catch(() => true);
       toast({
         variant: 'destructive',
-        title: 'Analysis Failed',
-        description: 'Failed to analyze project description. Please try again.',
+        title: enabled ? 'Analysis Failed' : 'AI is turned off',
+        description: enabled
+          ? 'Failed to analyze project description. Please try again.'
+          : 'AI features are not enabled for this workspace. Everything else works as normal.',
       });
     } finally {
       setIsLoading(false);

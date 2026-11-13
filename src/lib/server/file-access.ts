@@ -87,3 +87,13 @@ export function assertCanDelete(caller: Caller, relPath: string): void {
   }
   if (cat === 'logos' && caller.role !== 'Admin') throw new AccessError('Only company admins can change the logo.', 403);
 }
+
+/** Throws unless the caller may get a link to the file at relPath (any member of the owning company). */
+export function assertCanRead(caller: Caller, relPath: string): void {
+  const [cat, owner] = relPath.split('/');
+  if (caller.isSuperAdmin || cat === 'landing') return;
+  if (cat === 'avatars' && owner === caller.uid) return;
+  if (!FILE_CATEGORIES.includes(cat as FileCategory) || owner !== caller.companyId) {
+    throw new AccessError('You can only access your own company’s files.', 403);
+  }
+}

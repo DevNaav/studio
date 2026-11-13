@@ -1,10 +1,12 @@
 /**
- * POST   /api/files   multipart form: file, category, companyId?  → { path, url }
+ * GET    /api/files                                               → { mode: 'blob' | 'disk' }
+ * POST   /api/files   multipart form: file, category, companyId?  → { path, url }   (disk mode only)
  * DELETE /api/files?path=<storage path>                           → { ok: true }
- * Both require "Authorization: Bearer <Firebase ID token>".
+ * POST/DELETE require "Authorization: Bearer <Firebase ID token>".
+ * In blob mode browsers upload straight to Vercel Blob via /api/files/blob-upload.
  */
 import { NextResponse } from 'next/server';
-import { saveFile, deleteFile, MAX_UPLOAD_BYTES } from '@/lib/server/file-store';
+import { saveFile, deleteFile, MAX_UPLOAD_BYTES, storageMode } from '@/lib/server/file-store';
 import { getCaller, folderForUpload, assertCanDelete, AccessError } from '@/lib/server/file-access';
 
 export const runtime = 'nodejs';
@@ -20,8 +22,15 @@ function errorResponse(error: unknown) {
   return NextResponse.json({ error: 'Something went wrong with the file.' }, { status: 500 });
 }
 
+export async function GET() {
+  return NextResponse.json({ mode: storageMode() });
+}
+
 export async function POST(request: Request) {
   try {
+    if (storageMode() === 'blob') {
+      return NextResponse.json({ error: 'Uploads go directly to storage in this deployment.' }, { status: 409 });
+    }
     const length = Number(request.headers.get('content-length') || 0);
     if (length > MAX_UPLOAD_BYTES + 1024 * 1024) {
       return NextResponse.json({ error: 'File is too large (max 25 MB).' }, { status: 413 });

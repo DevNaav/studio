@@ -153,7 +153,7 @@ function TeamMemberCard({ name, role, imageUrl, bio, linkedin, twitter }: Landin
   return (
     <div className="group rounded-3xl bg-ink/[0.04] p-6 text-center ring-1 ring-ink/10 transition hover:-translate-y-1 hover:ring-sky-400/40">
       <div className="relative mx-auto h-28 w-28">
-        <Image src={imageUrl} alt={name} fill sizes="112px" className="rounded-full object-cover ring-4 ring-sky-400/20 transition group-hover:ring-sky-400/50" />
+        <Image src={imageUrl} unoptimized={imageUrl?.startsWith('/api/files/')} alt={name} fill sizes="112px" className="rounded-full object-cover ring-4 ring-sky-400/20 transition group-hover:ring-sky-400/50" />
       </div>
       <h3 className="mt-4 text-lg font-semibold">{name}</h3>
       <p className="text-sm text-sky-600 dark:text-sky-300">{role}</p>
@@ -417,7 +417,7 @@ export default function InventraLanding() {
               </div>
             </Reveal>
             <Reveal delay={150} className="relative aspect-[4/3] overflow-hidden rounded-3xl ring-1 ring-ink/10">
-              <Image src={content.aboutImageUrl} alt="Construction site illustration" fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
+              <Image src={content.aboutImageUrl} unoptimized={content.aboutImageUrl?.startsWith('/api/files/')} alt="Construction site illustration" fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
               <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-page/60 to-transparent" />
             </Reveal>
           </div>

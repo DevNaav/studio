@@ -4,7 +4,7 @@
  * signature) work, so file URLs can't be guessed or edited to reach other files.
  */
 import { promises as fs } from 'node:fs';
-import { resolveSafe, verifySignature, contentTypeFor } from '@/lib/server/file-store';
+import { resolveSafe, verifySignature, contentTypeFor, storageMode, blobDownloadUrl } from '@/lib/server/file-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +15,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ path
   const sig = new URL(request.url).searchParams.get('sig');
 
   if (!verifySignature(relPath, sig)) return new Response('Not found', { status: 404 });
+
+  // Vercel Blob: send the browser to a temporary (~1 hour) private link.
+  if (storageMode() === 'blob') {
+    try {
+      const target = await blobDownloadUrl(relPath);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: target,
+          // Shorter than the temporary link's lifetime, so a cached redirect never points at an expired link.
+          'Cache-Control': 'private, max-age=2700',
+        },
+      });
+    } catch (error) {
+      console.error('Blob download link failed:', error);
+      return new Response('Not found', { status: 404 });
+    }
+  }
 
   let data: Buffer;
   try {

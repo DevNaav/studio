@@ -8,7 +8,7 @@
  */
 
 import { ai, aiMiddleware } from '@/ai/genkit';
-import { requireUser } from '@/ai/require-user';
+import { requireAiUser as requireUser } from '@/ai/require-user';
 import { z } from 'genkit';
 import {
   IdentifyThreatsInputSchema,

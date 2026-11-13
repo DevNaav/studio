@@ -90,6 +90,7 @@ const EditableImage = ({ src, onSave, hint }: { src: string, onSave: (newUrl: st
             <Image
                 key={imageUrl} // Force re-render when URL changes
                 src={imageUrl}
+                unoptimized={imageUrl?.startsWith('/api/files/')}
                 alt="Editable image"
                 width={128}
                 height={128}

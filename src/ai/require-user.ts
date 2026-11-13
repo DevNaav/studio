@@ -52,3 +52,16 @@ export async function requireUser(idToken: string | undefined | null): Promise<s
   checkRateLimit(uid);
   return uid;
 }
+
+/** True when a Gemini API key is configured. Without one, AI features are switched off. */
+export function aiEnabled(): boolean {
+  return !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY);
+}
+
+/** Like requireUser, but first checks that AI is switched on (no Gemini key = no AI, no cost). */
+export async function requireAiUser(idToken: string | undefined | null): Promise<string> {
+  if (!aiEnabled()) {
+    throw new AuthError('AI features are turned off for this workspace. Everything else works as normal.');
+  }
+  return requireUser(idToken);
+}

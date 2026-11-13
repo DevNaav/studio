@@ -10,7 +10,7 @@
 
 import { ai, aiMiddleware } from '@/ai/genkit';
 import { createNewSite } from '@/ai/tools/site';
-import { requireUser, AuthError } from '@/ai/require-user';
+import { requireAiUser as requireUser, AuthError } from '@/ai/require-user';
 import { z } from 'genkit';
 
 const ChatMessageSchema = z.object({

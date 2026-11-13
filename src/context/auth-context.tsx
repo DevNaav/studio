@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth, db, getProvisioningAuth } from '@/lib/firebase';
-import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, ConfirmationResult, verifyBeforeUpdateEmail, updateProfile as updateFirebaseProfile } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, ConfirmationResult, verifyBeforeUpdateEmail, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc, query, where, addDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { UserProfile, UserRole } from '@/lib/types';
 import { addMonths } from 'date-fns';
@@ -51,6 +51,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let verificationTimer: NodeJS.Timeout | null = null;
     let profileUnsubscribe: () => void = () => {};
+
+    // Finishes a full-page Google sign-in (used when pop-ups are blocked) and reports its errors.
+    getRedirectResult(auth).catch((error: any) => {
+      console.error('Google redirect sign-in failed', error);
+      toast({
+        variant: 'destructive',
+        title: 'Google Sign-In Failed',
+        description: `Could not sign in with Google. Please try again.${error?.code ? ` (${String(error.code).replace('auth/', '')})` : ''}`,
+      });
+    });
 
     const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         setLoading(true);
@@ -194,18 +204,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     setAuthLoading(true);
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
       await signInWithPopup(auth, provider);
       // onAuthStateChanged and the profile listener will handle profile creation/fetching.
     } catch (error: any) {
-      if (error.code !== 'auth/popup-closed-by-user') {
-        console.error("Error signing in with Google", error);
-        toast({
-          variant: 'destructive',
-          title: 'Google Sign-In Failed',
-          description: 'Could not sign in with Google. Please try again.',
-        });
+      const code: string = error?.code ?? '';
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return;
+      // Popups blocked (browser setting, in-app browsers): sign in on a full page instead.
+      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+        await signInWithRedirect(auth, provider);
+        return;
       }
+      console.error("Error signing in with Google", error);
+      const reasons: Record<string, string> = {
+        'auth/unauthorized-domain': 'This website address is not allowed to use Google sign-in yet.',
+        'auth/operation-not-allowed': 'Google sign-in is turned off for this app.',
+        'auth/network-request-failed': 'Network problem. Check your internet connection and try again.',
+        'auth/account-exists-with-different-credential': 'An account with this email already exists. Sign in with your email and password.',
+        'auth/user-disabled': 'This account has been disabled.',
+        'auth/too-many-requests': 'Too many attempts. Please wait a minute and try again.',
+        'auth/internal-error': 'Google sign-in was interrupted. Please try again, or allow pop-ups for this site.',
+      };
+      toast({
+        variant: 'destructive',
+        title: 'Google Sign-In Failed',
+        description: `${reasons[code] ?? 'Could not sign in with Google. Please try again.'}${code ? ` (${code.replace('auth/', '')})` : ''}`,
+      });
     } finally {
        setAuthLoading(false);
     }

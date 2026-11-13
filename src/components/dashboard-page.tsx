@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/utils';
 import { format, isAfter, eachDayOfInterval, isBefore, isValid, differenceInDays, differenceInMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
+import { saleProfit, sumDirectExpenses } from '@/lib/costs';
 
 const HumanCharacter = dynamic(() => import('@/components/HumanCharacter'), {
   ssr: false,
@@ -143,7 +144,7 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
         
         const manufacturingSiteIds = manufacturingUnits.map(unit => unit.id);
         const manufacturingSales = allSales.filter(sale => manufacturingSiteIds.includes(sale.siteId));
-        const overallProfit = manufacturingSales.reduce((acc, sale) => acc + (sale.salePrice - sale.productionCost), 0);
+        const overallProfit = manufacturingSales.reduce((acc, sale) => acc + saleProfit(sale), 0);
 
         return {
             machinesInUse,
@@ -204,7 +205,9 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
             const otherExpenses = allExpenses.filter(e => e.siteId === site.id && !e.isDeleted);
             const totalEmiCost = otherExpenses.filter(e => e.category === 'EMI').reduce((acc, e) => acc + e.amount, 0);
             const totalTransportCost = otherExpenses.filter(e => e.category === 'Transport').reduce((acc, e) => acc + e.amount, 0);
-            const totalOtherCost = otherExpenses.filter(e => e.category === 'Other').reduce((acc, e) => acc + e.amount, 0);
+            // 'Other' here also covers manual Tools/Food expenses and defect-liability repairs,
+            // which used to be left out of the site total.
+            const totalOtherCost = sumDirectExpenses(otherExpenses) - totalEmiCost - totalTransportCost;
             const totalToolCost = allTools.filter(t => t.siteId === site.id && !t.isDeleted).reduce((acc, t) => acc + (t.price || 0), 0);
 
             const totalCost = totalLaborCost +

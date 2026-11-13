@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { format } from 'date-fns';
+import { saleProfit } from '@/lib/costs';
 
 interface ManufacturingSummaryProps {
     companyId: string | null | undefined;
@@ -96,7 +97,7 @@ export function ManufacturingSummary({ companyId }: ManufacturingSummaryProps) {
     if (otherCosts > 0) expenseComponents.push({ name: 'Other Expenses', value: otherCosts });
     
     const salesProfitability = sales.filter(s => !s.isDeleted).reduce((acc, sale) => {
-      const profit = sale.salePrice - sale.productionCost;
+      const profit = saleProfit(sale);
       if (profit > 0) {
         acc.set(sale.gradeName, (acc.get(sale.gradeName) || 0) + profit);
       }

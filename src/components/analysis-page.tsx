@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Button } from './ui/button';
 import jsPDF from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { saleProfit, sumDirectExpenses } from '@/lib/costs';
 
 interface AnalysisPageProps {
   companyId: string | null | undefined;
@@ -132,13 +133,15 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
       
       const machineIdsOnSite = allMachines.filter(m => m.assignedSiteId === site.id).map(m => m.id);
       const siteMaintenanceCost = allMaintenanceLogs
-          .filter(log => machineIdsOnSite.includes(log.machineId) && isWithinDateRange(log.scheduledDate))
+          .filter(log => machineIdsOnSite.includes(log.machineId) && log.costAllocation === 'Site Expenses' && isWithinDateRange(log.scheduledDate))
           .reduce((sum, log) => sum + (log.cost || 0), 0);
       const siteFuelCost = allFuelLogs
           .filter(log => log.siteId === site.id && isWithinDateRange(log.date))
           .reduce((sum, log) => sum + log.cost, 0);
 
-      const totalCost = siteExpenses.reduce((sum, e) => sum + e.amount, 0) +
+      // Material-transfer expenses are skipped: the same transfer is already a priced "Bought"
+      // stock entry below. (Rent here comes from the settlement expenses, so those stay in.)
+      const totalCost = siteExpenses.filter(e => e.category !== 'Materials').reduce((sum, e) => sum + e.amount, 0) +
                         siteLabor.filter(l => l.type === 'Payment').reduce((sum, l) => sum + l.amount, 0) +
                         siteMaterials.reduce((sum, m) => sum + (m.quantity * (m.pricePerUnit || 0)), 0) +
                         siteTools.reduce((sum, t) => sum + (t.price || 0), 0) +
@@ -159,7 +162,8 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
         const unitSales = allSales.filter(s => s.siteId === unit.id && isWithinDateRange(s.date));
         const productionCost = unitSales.reduce((sum, s) => sum + s.productionCost, 0);
         const totalSales = unitSales.reduce((sum, s) => sum + s.salePrice, 0);
-        const profit = totalSales - productionCost;
+        const transportCost = unitSales.reduce((sum, s) => sum + (s.transportCost || 0), 0);
+        const profit = totalSales - productionCost - transportCost;
 
         return {
             ...unit,
@@ -244,14 +248,20 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
     const transportCost = expenses.filter(e => e.category === 'Transport').reduce((acc, e) => acc + e.amount, 0);
     if(transportCost > 0) dataMap.set('Transport', transportCost);
 
-    const otherCost = expenses.filter(e => e.category === 'Other').reduce((acc, e) => acc + e.amount, 0);
+    const otherCost = sumDirectExpenses(expenses, 'Other');
     if(otherCost > 0) dataMap.set('Other', otherCost);
+
+    // Manual Tools / Food expenses and defect-liability repairs were missing from the totals.
+    (['Tools', 'Food', 'Maintenance'] as const).forEach(category => {
+      const cost = sumDirectExpenses(expenses, category);
+      if (cost > 0) dataMap.set(category, (dataMap.get(category) || 0) + cost);
+    });
     
     const expenseBreakdown = Array.from(dataMap.entries()).map(([name, value]) => ({ name, value }));
     const totalExpenses = expenseBreakdown.reduce((sum, item) => sum + item.value, 0);
     
     const totalSales = sales.reduce((acc, s) => acc + s.salePrice, 0);
-    const totalProfit = sales.reduce((acc, s) => acc + (s.salePrice - s.productionCost), 0);
+    const totalProfit = sales.reduce((acc, s) => acc + saleProfit(s), 0);
     
     const inventoryValue = (() => {
         const stock: { [key: string]: { quantity: number; totalValue: number } } = {};

@@ -30,6 +30,7 @@ import { ToolsTab } from './tabs/tools-tab';
 import { format, isBefore, eachDayOfInterval, isValid, isAfter, differenceInDays, differenceInMonths } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { Separator } from './ui/separator';
+import { sumDirectExpenses } from '@/lib/costs';
 
 interface SiteDetailsProps {
   site: Site;
@@ -163,7 +164,9 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
     const materialsCost = materials.filter(i => i.status === 'Bought' && !i.isDeleted).reduce((sum, i) => sum + (i.quantity * (i.pricePerUnit || 0)), 0);
     const maintenanceCost = allMaintenanceLogs.filter(l => !l.isDeleted && machineIdsOnSite.includes(l.machineId) && l.costAllocation === 'Site Expenses').reduce((sum, l) => sum + (l.cost || 0), 0);
     const fuelCost = allFuelLogs.filter(f => f.siteId === site.id && !f.isDeleted).reduce((sum, f) => sum + f.cost, 0);
-    const otherExpensesCost = expenses.filter(e => !e.isDeleted).reduce((sum, e) => sum + e.amount, 0);
+    // Only direct expenses: material-transfer and rental-settlement expenses are already
+    // counted in materials and rent above, so adding every expense counted them twice.
+    const otherExpensesCost = sumDirectExpenses(expenses);
     const toolCost = tools.filter(t => !t.isDeleted).reduce((sum, t) => sum + (t.price || 0), 0);
 
     let rentalCost = 0;

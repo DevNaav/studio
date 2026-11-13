@@ -149,7 +149,8 @@ export function SummaryTab({ site, totalLaborWages, wageSummary }: SummaryTabPro
       .reduce((acc, tool) => acc + (tool.price!), 0);
     if (totalToolCost > 0) dataMap.set('Tools', totalToolCost);
 
-    const otherCategories = ['Transport', 'Other'];
+    // Tools, Food and Maintenance expense records were left out of the site total before.
+    const otherCategories = ['Transport', 'Other', 'Tools', 'Food', 'Maintenance'];
     otherCategories.forEach(category => {
         const categoryCost = expenses
             .filter(e => e.category === category && !e.isDeleted)

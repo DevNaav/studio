@@ -37,6 +37,7 @@ import { OnboardingFlow } from '@/components/onboarding-flow';
 import { GuidedTour } from '@/components/guided-tour';
 import { useToast } from '@/hooks/use-toast';
 import { FloatingAssistant } from '@/components/floating-assistant';
+import { AlertsBell } from '@/components/alerts-bell';
 
 
 const LoadingComponent = () => (
@@ -810,6 +811,23 @@ function AppClientContent() {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-4">
+                <AlertsBell
+                  companyId={companyIdForViews}
+                  userId={user.uid}
+                  isAdmin={isAdmin}
+                  sites={sites}
+                  tasks={headerTasks}
+                  onNavigate={(target) => {
+                    if (isMobile) setOpenMobile(false);
+                    if (target.view === 'site') {
+                      setSelectedSiteId(target.siteId);
+                      setActiveView('sites');
+                    } else {
+                      setSelectedSiteId(null);
+                      setActiveView(target.view);
+                    }
+                  }}
+                />
                 <ThemeMenu />
                 {isSuperAdmin ? (
                     <Popover open={companySelectorOpen} onOpenChange={setCompanySelectorOpen}>

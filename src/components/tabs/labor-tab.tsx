@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Labor, Attendance, AttendanceStatus, attendanceStatuses, LaborTransaction, wageTypes, WageType, Site, paymentMethods, WorkLog, PaymentMethod, LaborTransactionType, EmploymentStatus } from '@/lib/types';
+import { Labor, Attendance, AttendanceStatus, attendanceStatuses, LaborTransaction, wageTypes, WageType, Site, paymentMethods, WorkLog, PaymentMethod, LaborTransactionType, EmploymentStatus, Company } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Users, Check, X, Minus, ChevronLeft, ChevronRight, Download, IndianRupee, Loader2, Filter, Ruler, LogOut, CheckSquare, Undo2, CreditCard, UserPlus, MoreVertical, Briefcase, User as UserIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Check, X, Minus, ChevronLeft, ChevronRight, Download, IndianRupee, Loader2, Filter, Ruler, LogOut, CheckSquare, Undo2, CreditCard, UserPlus, MoreVertical, Briefcase, User as UserIcon, FileText } from 'lucide-react';
+import { PayslipDialog } from '@/components/payslip-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteConfirmationDialog } from '../delete-confirmation-dialog';
 import { Separator } from '../ui/separator';
@@ -58,9 +59,10 @@ const formSchema = z.object({
 interface LaborTabProps {
   site: Site;
   wageSummary: any[];
+  company?: Company;
 }
 
-export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProps) {
+export function LaborTab({ site, wageSummary: initialWageSummary, company }: LaborTabProps) {
   const { id: siteId, companyId } = site;
   const [labors, setLabors] = useState<Labor[]>([]);
   const [allAttendances, setAllAttendances] = useState<Attendance[]>([]);
@@ -75,6 +77,7 @@ export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProp
   const [isTransactionDeleteOpen, setIsTransactionDeleteOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [selectedLabor, setSelectedLabor] = useState<Labor | null>(null);
+  const [payslipLabor, setPayslipLabor] = useState<Labor | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<LaborTransaction | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [attendanceChanges, setAttendanceChanges] = useState<{[laborId: string]: AttendanceStatus}>({});
@@ -578,6 +581,11 @@ export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProp
                                     <DropdownMenuItem onSelect={() => handleOpenTransactionDialog(null)}>
                                       <IndianRupee className="mr-2 h-4 w-4" /> Log Payment
                                     </DropdownMenuItem>
+                                    {laborer && (
+                                      <DropdownMenuItem onSelect={() => setPayslipLabor(laborer)}>
+                                        <FileText className="mr-2 h-4 w-4" /> Payslip (PDF)
+                                      </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem onSelect={() => handleOpenDialog(laborer)}>
                                         <Edit className="mr-2 h-4 w-4" /> Edit Details
                                     </DropdownMenuItem>
@@ -1053,6 +1061,17 @@ export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProp
         onConfirm={handleDeleteTransactionConfirm}
         title="Delete Transaction"
         description={`Are you sure you want to delete this transaction? This action cannot be undone.`}
+      />
+      <PayslipDialog
+        open={!!payslipLabor}
+        onOpenChange={(open) => { if (!open) setPayslipLabor(null); }}
+        labor={payslipLabor}
+        siteName={site.name}
+        companyName={company?.name || ''}
+        logoUrl={company?.logoUrl}
+        attendances={allAttendances}
+        workLogs={workLogs}
+        transactions={transactions}
       />
     </div>
   );

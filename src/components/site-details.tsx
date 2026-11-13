@@ -309,7 +309,7 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
             <RentedMaterialsTab siteId={site.id} />
           </TabsContent>
           <TabsContent value="labor">
-            <LaborTab site={site} wageSummary={wageSummary} />
+            <LaborTab site={site} wageSummary={wageSummary} company={company} />
           </TabsContent>
           <TabsContent value="machine-costs">
             <MachineCostsTab site={site} />

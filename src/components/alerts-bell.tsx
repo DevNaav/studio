@@ -111,8 +111,7 @@ export function AlertsBell({ companyId, userId, isAdmin, sites, tasks, onNavigat
 
   const unseen = alerts.filter(a => !seen.has(a.id));
 
-  const markAllSeen = () => {
-    const ids = new Set(alerts.map(a => a.id)); // drops ids of alerts that no longer exist
+  const saveSeen = (ids: Set<string>) => {
     setSeen(ids);
     try {
       localStorage.setItem(seenKey, JSON.stringify([...ids]));
@@ -120,6 +119,10 @@ export function AlertsBell({ companyId, userId, isAdmin, sites, tasks, onNavigat
       /* private mode: reading state just isn't remembered */
     }
   };
+
+  // Ids of alerts that no longer exist are dropped, so the stored list stays small.
+  const markAllSeen = () => saveSeen(new Set(alerts.map(a => a.id)));
+  const markSeen = (id: string) => saveSeen(new Set([...alerts.map(a => a.id).filter(a => seen.has(a)), id]));
 
   if (!companyId) return null;
 
@@ -176,6 +179,7 @@ export function AlertsBell({ companyId, userId, isAdmin, sites, tasks, onNavigat
                     type="button"
                     onClick={() => {
                       setOpen(false);
+                      markSeen(alert.id);
                       onNavigate(alert.target);
                     }}
                     className={cn(

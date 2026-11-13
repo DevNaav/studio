@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { onSubCollectionSnapshot, addDocWithSiteId, softDeleteDocWithId } from '@/context/site-context';
 import { useAuth } from '@/context/auth-context';
 import { DeleteConfirmationDialog } from '../delete-confirmation-dialog';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   item: z.string().min(3, 'Item description is too short'),
@@ -51,7 +51,7 @@ export function TheftTab({ siteId }: TheftTabProps) {
     defaultValues: {
       item: '',
       value: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: todayISO(),
       details: '',
     },
   });
@@ -62,7 +62,7 @@ export function TheftTab({ siteId }: TheftTabProps) {
     try {
       await addDocWithSiteId('thefts', userProfile.companyId, siteId, values);
       toast({ title: "Theft Logged", description: `Theft of "${values.item}" has been recorded.` });
-      form.reset({ date: new Date().toISOString().split('T')[0] });
+      form.reset({ date: todayISO() });
       setIsDialogOpen(false);
     } catch (error) {
       console.error(error);

@@ -158,43 +158,12 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
         sites.forEach(site => {
             const siteLabor = allLabor.filter(l => l.siteId === site.id && !l.isDeleted);
             
-            const totalLaborCost = siteLabor.reduce((acc, labor) => {
-                let totalWages = 0;
-                const joiningDate = labor.dateOfJoining ? new Date(labor.dateOfJoining) : null;
-                
-                if (labor.wageType === 'Contract') {
-                    totalWages = allWorkLogs
-                        .filter(log => log.laborerId === labor.id && !log.isDeleted)
-                        .reduce((sum, log) => sum + log.wageEarned, 0);
-                } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate)) {
-                    const monthsWorked = differenceInMonths(today, joiningDate) + 1;
-                    totalWages = monthsWorked * labor.wage;
-                } else if (labor.wageType === 'Daily' && joiningDate && labor.wage) {
-                    if (isValid(joiningDate)) {
-                        const allDays = eachDayOfInterval({ start: joiningDate, end: today });
-                        let totalDailyWages = 0;
-                        allDays.forEach(day => {
-                            const dateStr = format(day, 'yyyy-MM-dd');
-                            const record = allAttendances.find(a => a.laborId === labor.id && a.date === dateStr);
-                            const status = record?.status || (isBefore(day, today) ? 'Present' : 'Unmarked');
-                            
-                            let dayValue = 0;
-                            if (status === 'Present') dayValue = 1;
-                            else if (status === 'Half-day') dayValue = 0.5;
-                            
-                            if (dayValue > 0) {
-                                totalDailyWages += dayValue * labor.wage!;
-                            }
-                        });
-                        totalWages = totalDailyWages;
-                    }
-                }
-                const payments = allLaborTransactions
-                  .filter(t => t.laborId === labor.id && t.type === 'Payment' && !t.isDeleted)
-                  .reduce((sum, t) => sum + t.amount, 0);
-                
-                return acc + payments;
-            }, 0);
+            // Labour cost on the dashboard is what has actually been paid out. (A full day-by-day
+            // wage calculation used to run here for every worker and was then thrown away.)
+            const siteLaborIds = new Set(siteLabor.map(l => l.id));
+            const totalLaborCost = allLaborTransactions
+              .filter(t => siteLaborIds.has(t.laborId) && t.type === 'Payment' && !t.isDeleted)
+              .reduce((sum, t) => sum + t.amount, 0);
     
             const totalMaterialsCost = allInventory.filter(i => i.siteId === site.id && i.status === 'Bought' && !i.isDeleted).reduce((acc, i) => acc + (i.quantity * (i.pricePerUnit || 0)), 0);
             

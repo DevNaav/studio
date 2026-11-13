@@ -22,7 +22,7 @@ import { onGlobalCollectionSnapshot, addDocToGlobalCollection, updateDocWithId, 
 import { useSite } from '@/context/site-context';
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 
 const MAX_FILE_SIZE = 5000000; // 5MB
@@ -122,7 +122,7 @@ export function LaborPage({ companyId }: LaborPageProps) {
       });
     } else {
       if (isDialogOpen) {
-        form.reset({ name: '', role: '', wageType: undefined, wage: 0, siteId: undefined, idNumber: '', dateOfJoining: new Date().toISOString().split('T')[0], idProof: undefined, contractType: '', pricePerUnit: 0, unit: '' });
+        form.reset({ name: '', role: '', wageType: undefined, wage: 0, siteId: undefined, idNumber: '', dateOfJoining: todayISO(), idProof: undefined, contractType: '', pricePerUnit: 0, unit: '' });
       }
     }
   }, [selectedLabor, form, isDialogOpen]);

@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DefectLiability } from '@/lib/types';
 import { addDocWithSiteId } from '@/context/site-context';
 import { Loader2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   description: z.string().min(5, 'Description must be at least 5 characters.'),
@@ -51,7 +51,7 @@ export function AddLiabilityExpenseDialog({ open, onOpenChange, liability, compa
     defaultValues: {
       description: '',
       amount: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: todayISO(),
     },
   });
 

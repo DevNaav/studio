@@ -29,7 +29,7 @@ import { Loader2 } from 'lucide-react';
 import { writeBatch, collection, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 const workLogSchema = z.object({
   laborerId: z.string().min(1, 'Please select a laborer.'),
@@ -58,7 +58,7 @@ export function LogWorkDialog({ open, onOpenChange, siteId, contractLabors }: Lo
       form.reset({
         laborerId: undefined,
         quantity: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
       });
     }
   }, [open, form]);

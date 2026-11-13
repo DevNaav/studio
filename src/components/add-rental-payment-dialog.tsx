@@ -30,7 +30,7 @@ import { Textarea } from './ui/textarea';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   machineId: z.string(),
@@ -67,7 +67,7 @@ export function AddRentalPaymentDialog({ open, onOpenChange, machine }: AddRenta
       form.reset({
         machineId: machine.id,
         amount: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
         notes: '',
         paymentMethod: undefined,
       });

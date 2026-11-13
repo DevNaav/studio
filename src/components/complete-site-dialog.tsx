@@ -19,6 +19,7 @@ import { ReleaseAssetsDialog } from './release-assets-dialog';
 import { writeBatch, doc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useSite } from '@/context/site-context';
+import { todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   completionDate: z.string().min(1, 'Completion date is required.'),
@@ -56,7 +57,7 @@ export function CompleteSiteDialog({ open, onOpenChange, site, company }: Comple
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-        completionDate: new Date().toISOString().split('T')[0],
+        completionDate: todayISO(),
         endDate: '',
         retentionAmount: 0,
         notes: '',
@@ -67,7 +68,7 @@ export function CompleteSiteDialog({ open, onOpenChange, site, company }: Comple
     if (open) {
       setView('liability');
       form.reset({
-        completionDate: new Date().toISOString().split('T')[0],
+        completionDate: todayISO(),
         endDate: '',
         retentionAmount: (site.budget || 0) * 0.10, // Default to 10% of budget
         notes: '',
@@ -149,7 +150,7 @@ export function CompleteSiteDialog({ open, onOpenChange, site, company }: Comple
     
     try {
         const batch = writeBatch(db);
-        const date = new Date().toISOString().split('T')[0];
+        const date = todayISO();
 
         // 1. Update site status to 'Completed'
         const siteRef = doc(db, 'sites', site.id);

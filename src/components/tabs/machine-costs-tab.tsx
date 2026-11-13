@@ -21,6 +21,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useAuth } from '@/context/auth-context';
+import { todayISO } from '@/lib/utils';
 
 interface MachineCostsTabProps {
   site: Site;
@@ -77,7 +78,7 @@ export function MachineCostsTab({ site }: MachineCostsTabProps) {
         name: '',
         vehicleNumber: '',
         acquisition: undefined,
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
         dailyRentalPrice: 0,
         purchaseType: undefined,
         purchasePrice: 0,
@@ -247,7 +248,7 @@ export function MachineCostsTab({ site }: MachineCostsTabProps) {
             await updateDocWithId('machines', machineId, finalMachineData);
             toast({ title: 'Machine Updated', description: `"${values.name}" has been updated.` });
         } else {
-            const newDoc = await addDocToGlobalCollection('machines', companyId, { ...finalMachineData, assignedSiteId: site.id, assignmentDate: new Date().toISOString().split('T')[0] });
+            const newDoc = await addDocToGlobalCollection('machines', companyId, { ...finalMachineData, assignedSiteId: site.id, assignmentDate: todayISO() });
             machineId = newDoc.id;
             toast({ title: 'Machine Logged', description: `"${values.name}" has been logged and assigned to this site.` });
         }

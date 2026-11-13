@@ -23,7 +23,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { db } from '@/lib/firebase';
 import { collection, query, where, doc, onSnapshot } from 'firebase/firestore';
 import { isPast } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, todayISO } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
@@ -305,7 +305,7 @@ function AppClientContent() {
   }, [companyIdForViews]);
 
   const headerStats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayISO();
     const open = headerTasks.filter(t => t.status !== 'Done');
     return {
       dueToday: open.filter(t => t.dueDate === today).length,
@@ -389,10 +389,10 @@ function AppClientContent() {
 
 
   const hasPremiumFeatures = isSuperAdmin || 
-      (currentCompany?.planId.startsWith('premium')) ||
+      (currentCompany?.planId?.startsWith('premium')) ||
       (currentCompany?.subscriptionStatus === 'Trial');
 
-  const onBasicPlan = currentCompany?.planId.startsWith('basic') && currentCompany.subscriptionStatus === 'Active';
+  const onBasicPlan = currentCompany?.planId?.startsWith('basic') && currentCompany.subscriptionStatus === 'Active';
   
   const constructionSites = useMemo(() => sites.filter(s => (s.type === 'Construction' || !s.type) && s.status !== 'Completed'), [sites]);
   const manufacturingUnits = useMemo(() => sites.filter(s => s.type === 'Manufacturing' && s.status !== 'Completed'), [sites]);
@@ -466,10 +466,42 @@ function AppClientContent() {
   }
 
   if (!isSubscriptionActive) {
+    // Admins must still be able to renew; before, an expired company was a dead end.
+    if (isAdmin && currentCompany) {
+      return (
+        <div className="min-h-screen w-full bg-background text-foreground">
+          <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+              <div>
+                <p className="flex items-center gap-2 font-semibold"><Lock className="h-4 w-4" /> Subscription {subscriptionStatus === 'Canceled' ? 'canceled' : 'expired'}</p>
+                <p className="text-sm text-muted-foreground">Choose a plan to unlock {currentCompany.name} again. Your data is safe.</p>
+              </div>
+              <Button variant="outline" onClick={handleLogout}>Logout</Button>
+            </div>
+            {activeView === 'payment' && paymentPlan ? (
+              <PaymentPage
+                company={currentCompany}
+                planId={paymentPlan.planId}
+                billingCycle={paymentPlan.billingCycle}
+                onPaymentSuccess={handlePaymentSuccess}
+              />
+            ) : (
+              <SubscriptionStatusPage
+                company={currentCompany}
+                onSelectPlan={(planId, billingCycle) => {
+                  setPaymentPlan({ planId, billingCycle });
+                  setActiveView('payment');
+                }}
+              />
+            )}
+          </div>
+        </div>
+      );
+    }
     return (
       <LockedScreen 
         title="Subscription Expired" 
-        description={`Your company's subscription is ${subscriptionStatus}. Please update your subscription to continue.`}
+        description={`Your company's subscription is ${subscriptionStatus}. Please ask your company admin to renew it.`}
         onLogout={handleLogout}
       />
     );

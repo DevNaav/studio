@@ -29,7 +29,7 @@ import { updateDocWithId, addDocWithSiteId } from '@/context/site-context';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { format, isBefore } from 'date-fns';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 interface FinalizeRentalDialogProps {
   open: boolean;
@@ -57,7 +57,7 @@ export function FinalizeRentalDialog({ open, onOpenChange, material, companyId }
   useEffect(() => {
     if (open) {
       form.reset({
-        returnDate: new Date().toISOString().split('T')[0],
+        returnDate: todayISO(),
         remarks: 'Material returned in good condition.',
       });
     }

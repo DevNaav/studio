@@ -21,6 +21,7 @@ import { useAuth } from '@/context/auth-context';
 import { DeleteConfirmationDialog } from '../delete-confirmation-dialog';
 import { Badge } from '../ui/badge';
 import { format, isPast } from 'date-fns';
+import { todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   title: z.string().min(5, 'Title is too short'),
@@ -87,7 +88,7 @@ export function TasksTab({ site }: TasksTabProps) {
             title: '',
             description: '',
             assigneeId: undefined,
-            dueDate: new Date().toISOString().split('T')[0],
+            dueDate: todayISO(),
             status: 'To Do',
         });
     } else if (isTaskDialogOpen && selectedTask) {

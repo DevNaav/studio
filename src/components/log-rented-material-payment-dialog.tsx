@@ -30,7 +30,7 @@ import { updateDocWithId } from '@/context/site-context';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { v4 as uuidv4 } from 'uuid';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 
 const formSchema = z.object({
@@ -58,7 +58,7 @@ export function LogRentedMaterialPaymentDialog({ open, onOpenChange, material }:
     if (open) {
       form.reset({
         amount: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
         method: undefined,
         notes: '',
       });

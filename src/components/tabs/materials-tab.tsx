@@ -29,6 +29,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { todayISO } from '@/lib/utils';
 
 const BbsDialog = dynamic(() => import('../bbs-dialog').then(mod => mod.BbsDialog), {
   ssr: false,
@@ -183,7 +184,7 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
           pricePerUnit: 0,
           vendor: '',
           vendorNumber: '',
-          date: new Date().toISOString().split('T')[0],
+          date: todayISO(),
           description: '',
           unit: '',
           lowStockThreshold: 0,

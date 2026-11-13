@@ -23,6 +23,7 @@ import { format, isAfter, isBefore, eachDayOfInterval, startOfMonth, endOfMonth,
 import { uploadFile, deleteUploadedFile } from '@/lib/file-upload';
 import { LogRentedMaterialPaymentDialog } from '../log-rented-material-payment-dialog';
 import { FinalizeRentalDialog } from '../finalize-rental-dialog';
+import { todayISO } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,7 +105,7 @@ export function RentedMaterialsTab({ siteId }: RentedMaterialsTabProps) {
                 rentPerDay: 0,
                 rentedFrom: '',
                 contact: '',
-                startDate: new Date().toISOString().split('T')[0],
+                startDate: todayISO(),
                 status: 'Active',
                 remarks: '',
                 document: undefined,

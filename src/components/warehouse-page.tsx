@@ -24,6 +24,7 @@ import Papa from 'papaparse';
 import { writeBatch, doc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   name: z.string({ required_error: "Please select a material." }).min(1, { message: 'Please select a material.' }),
@@ -117,7 +118,7 @@ export function WarehousePage({ companyId }: WarehousePageProps) {
       quantity: 1,
       pricePerUnit: 0,
       unit: '',
-      date: new Date().toISOString().split('T')[0],
+      date: todayISO(),
       lowStockThreshold: 0,
     },
   });
@@ -146,7 +147,7 @@ export function WarehousePage({ companyId }: WarehousePageProps) {
         quantity: 1,
         pricePerUnit: 0,
         unit: '',
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
         lowStockThreshold: 0,
     });
     setIsDialogOpen(true);
@@ -219,7 +220,7 @@ export function WarehousePage({ companyId }: WarehousePageProps) {
         status: 'Stored',
         quantity: 0,
         siteId: 'main',
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
       });
       toast({ title: 'New Material Type Added' });
       setIsNewMaterialDialogOpen(false);
@@ -235,7 +236,7 @@ export function WarehousePage({ companyId }: WarehousePageProps) {
     if (!companyId || !itemToTransfer) return;
     setIsSubmitting(true);
     const batch = writeBatch(db);
-    const date = new Date().toISOString().split('T')[0];
+    const date = todayISO();
     
     // Calculate average price from warehouse stock
     const warehouseStockItems = inventory.filter(item => item.siteId === 'main' && item.name === itemToTransfer.name && item.status === 'Stored' && item.pricePerUnit);

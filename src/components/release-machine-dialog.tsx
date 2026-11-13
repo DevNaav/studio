@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { Machine } from '@/lib/types';
 import { addDocWithSiteId, updateDocWithId } from '@/context/site-context';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,7 +43,7 @@ export function ReleaseMachineDialog({ open, onOpenChange, machine, siteId, comp
 
   useEffect(() => {
     if (open) {
-      form.reset({ returnDate: new Date().toISOString().split('T')[0], remarks: '' });
+      form.reset({ returnDate: todayISO(), remarks: '' });
     }
   }, [open, form]);
 

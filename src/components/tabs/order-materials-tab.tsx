@@ -19,6 +19,7 @@ import { useAuth } from '@/context/auth-context';
 import { Badge } from '../ui/badge';
 import { format } from 'date-fns';
 import { Separator } from '../ui/separator';
+import { todayISO } from '@/lib/utils';
 
 const orderFormSchema = z.object({
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
@@ -97,7 +98,7 @@ export function OrderMaterialsTab({ siteId }: OrderMaterialsTabProps) {
             vendorNumber: selectedMaterial.vendorNumber,
             pricePerUnit: selectedMaterial.pricePerUnit,
             status: 'Pending',
-            orderDate: new Date().toISOString().split('T')[0],
+            orderDate: todayISO(),
         };
         await addDocWithSiteId('orders', companyId, siteId, orderData);
 
@@ -119,7 +120,7 @@ export function OrderMaterialsTab({ siteId }: OrderMaterialsTabProps) {
   const handleMarkAsDelivered = async (order: Order) => {
     if(!companyId) return;
     try {
-        await updateDocWithId('orders', order.id, { status: 'Delivered', deliveryDate: new Date().toISOString().split('T')[0] });
+        await updateDocWithId('orders', order.id, { status: 'Delivered', deliveryDate: todayISO() });
         
         await addDocWithSiteId('inventory', companyId, siteId, {
             name: order.materialName,
@@ -129,7 +130,7 @@ export function OrderMaterialsTab({ siteId }: OrderMaterialsTabProps) {
             pricePerUnit: order.pricePerUnit,
             vendor: order.vendorName,
             vendorNumber: order.vendorNumber,
-            date: new Date().toISOString().split('T')[0],
+            date: todayISO(),
         });
 
         toast({ title: "Order Delivered", description: `${order.quantity} units of ${order.materialName} have been added to the inventory.` });

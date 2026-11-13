@@ -6,6 +6,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Today's date as yyyy-MM-dd in the user's own time zone.
+ * (new Date().toISOString() gives the UTC date, which in India is still "yesterday"
+ * until 5:30 am, so entries made early in the morning were saved on the wrong day.)
+ */
+export function todayISO(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** Rounds money to paise, so repeated additions don't drift (0.1 + 0.2 !== 0.3). */
+export function roundMoney(amount: number): number {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
 // Unit Conversion Utilities
 
 const conversionFactors: { [key: string]: number } = {

@@ -105,19 +105,22 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
         if (labor.wageType === 'Contract') {
             totalWages = workLogs.filter(log => log.laborerId === labor.id && !log.isDeleted).reduce((sum, log) => sum + log.wageEarned, 0);
             daysWorked = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).length;
-        } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate)) {
+        } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate) && !isAfter(joiningDate, today)) {
             const monthsWorked = differenceInMonths(today, joiningDate) + 1;
             totalWages = monthsWorked * labor.wage; // Include current month
             daysWorked = differenceInDays(today, joiningDate);
         } else if (labor.wageType === 'Daily' && joiningDate && labor.wage) {
-            if (isValid(joiningDate)) {
+            // Someone joining in the future has earned nothing yet.
+            if (isValid(joiningDate) && !isAfter(joiningDate, today)) {
                 const allDays = eachDayOfInterval({ start: joiningDate, end: today });
+                // Look attendance up by date instead of scanning every record for every day.
+                const attendanceByDate = new Map(allAttendances.filter(a => a.laborId === labor.id).map(a => [a.date, a]));
                 let totalDailyWages = 0;
                 let daysWorkedCount = 0;
 
                 allDays.forEach(day => {
                     const dateStr = format(day, 'yyyy-MM-dd');
-                    const record = allAttendances.find(a => a.laborId === labor.id && a.date === dateStr);
+                    const record = attendanceByDate.get(dateStr);
                     const status = record?.status || (isBefore(day, today) ? 'Present' : 'Unmarked');
                     
                     let dayValue = 0;
@@ -181,7 +184,11 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
     });
 
     siteMachines.filter(m => m.acquisition === 'Rented' && m.dailyRentalPrice && m.assignmentDate).forEach(machine => {
-        const rentalPeriod = eachDayOfInterval({ start: new Date(machine.assignmentDate!), end: new Date() });
+        const startDate = new Date(machine.assignmentDate!);
+        // A machine booked for a future date costs nothing yet. (date-fns 3 returns the days
+        // *between* the dates when start is after end, which used to bill those days.)
+        if (!isValid(startDate) || isAfter(startDate, today)) return;
+        const rentalPeriod = eachDayOfInterval({ start: startDate, end: today });
         rentalPeriod.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
             const attendance = machineAttendances.find(a => a.machineId === machine.id && a.date === dateStr);

@@ -30,6 +30,7 @@ import { LogSalePaymentDialog } from './log-sale-payment-dialog';
 import { LogSummaryPaymentDialog } from './log-summary-payment-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DashboardExpenseChart } from './dashboard-expense-chart';
+import { todayISO } from '@/lib/utils';
 
 
 const saleMaterialItemSchema = z.object({
@@ -238,7 +239,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
       } else {
         saleForm.reset({
           quantity: 1,
-          date: new Date().toISOString().split('T')[0],
+          date: todayISO(),
           buyerInfo: '',
           salePrice: 0,
           transportCost: 0,
@@ -300,7 +301,10 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
             return acc;
         }, {} as { [key: string]: { quantity: number; unit: string } }),
         amountPaid: selectedSale ? selectedSale.amountPaid : 0,
-        paymentStatus: selectedSale ? selectedSale.paymentStatus : 'Unpaid',
+        // Re-check the status on edit: a changed price can make a sale paid or unpaid again.
+        paymentStatus: !selectedSale || !selectedSale.amountPaid
+            ? 'Unpaid'
+            : selectedSale.amountPaid >= values.salePrice ? 'Paid' : 'Partially Paid',
         paymentHistory: selectedSale?.paymentHistory ?? [],
         totalQuantityUnit: values.totalQuantityUnit || 'm³',
     };
@@ -314,7 +318,8 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
         const saleDocRef = doc(collection(db, 'sales'));
         batch.set(saleDocRef, { ...saleData, isDeleted: false });
 
-        const date = new Date().toISOString().split('T')[0];
+        // Stock moves on the day of the sale (which may be back-dated), not the day it was typed in.
+        const date = values.date;
         const inventoryCollectionRef = collection(db, 'inventory');
 
         values.materialsUsed.forEach(mat => {

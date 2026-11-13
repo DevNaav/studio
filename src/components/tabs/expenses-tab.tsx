@@ -21,7 +21,7 @@ import { onSubCollectionSnapshot, addDocWithSiteId, softDeleteDocWithId, onGloba
 import { DeleteConfirmationDialog } from '../delete-confirmation-dialog';
 import { Textarea } from '../ui/textarea';
 import { useAuth } from '@/context/auth-context';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 
 const generalExpenseSchema = z.object({
@@ -160,7 +160,7 @@ export function ExpensesTab({ siteId, isManufacturing = false }: ExpensesTabProp
 
   const generalExpenseForm = useForm<z.infer<typeof generalExpenseSchema>>({
     resolver: zodResolver(generalExpenseSchema),
-    defaultValues: { description: '', amount: 0, date: new Date().toISOString().split('T')[0], category: 'Other' },
+    defaultValues: { description: '', amount: 0, date: todayISO(), category: 'Other' },
   });
 
   const onGeneralSubmit = async (values: z.infer<typeof generalExpenseSchema>) => {

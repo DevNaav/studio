@@ -29,7 +29,7 @@ import { Sale, paymentMethods, SalePayment, SalePaymentStatus } from '@/lib/type
 import { updateDocWithId } from '@/context/site-context';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, roundMoney, todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   amount: z.coerce.number().positive('Amount must be a positive number'),
@@ -49,7 +49,7 @@ export function LogSalePaymentDialog({ open, onOpenChange, sale }: LogSalePaymen
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const balanceDue = useMemo(() => {
-    return sale.salePrice - sale.amountPaid;
+    return roundMoney(sale.salePrice - (sale.amountPaid || 0));
   }, [sale.salePrice, sale.amountPaid]);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -60,7 +60,7 @@ export function LogSalePaymentDialog({ open, onOpenChange, sale }: LogSalePaymen
     if (open) {
       form.reset({
         amount: balanceDue > 0 ? balanceDue : 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
         method: undefined,
         notes: '',
       });
@@ -68,6 +68,10 @@ export function LogSalePaymentDialog({ open, onOpenChange, sale }: LogSalePaymen
   }, [open, balanceDue, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (roundMoney(values.amount) > roundMoney(balanceDue)) {
+      form.setError('amount', { message: `Amount can't be more than the balance due (${formatCurrency(balanceDue)}).` });
+      return;
+    }
     setIsSubmitting(true);
     
     const newPayment: SalePayment = {
@@ -77,7 +81,7 @@ export function LogSalePaymentDialog({ open, onOpenChange, sale }: LogSalePaymen
       notes: values.notes,
     };
     
-    const newAmountPaid = sale.amountPaid + newPayment.amount;
+    const newAmountPaid = roundMoney((sale.amountPaid || 0) + newPayment.amount);
     const newBalance = sale.salePrice - newAmountPaid;
 
     let newPaymentStatus: SalePaymentStatus = 'Partially Paid';

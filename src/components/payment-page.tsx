@@ -60,7 +60,11 @@ export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }:
 
     try {
       const now = new Date();
-      const newEndDate = billingCycle === 'annually' ? addYears(now, 1) : addMonths(now, 1);
+      // Renewing early adds to the time already paid for instead of throwing it away.
+      // (A trial's remaining days are not carried over.)
+      const currentEnd = company.subscriptionEndDate ? new Date(company.subscriptionEndDate) : null;
+      const base = company.subscriptionStatus === 'Active' && currentEnd && currentEnd > now ? currentEnd : now;
+      const newEndDate = billingCycle === 'annually' ? addYears(base, 1) : addMonths(base, 1);
       
       await recordPaymentAndUpdateSubscription(
         company.id,

@@ -21,7 +21,7 @@ import { useAuth } from '@/context/auth-context';
 import { DeleteConfirmationDialog } from '../delete-confirmation-dialog';
 import { Badge } from '../ui/badge';
 import { serverTimestamp } from 'firebase/firestore';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   paymentType: z.enum(sitePaymentTypes, { required_error: 'Please select a payment type.' }),
@@ -75,7 +75,7 @@ export function PaymentTab({ siteId, totalSiteExpenses }: PaymentTabProps) {
         form.reset({
           paymentType: undefined,
           amount: 0,
-          date: new Date().toISOString().split('T')[0],
+          date: todayISO(),
           description: '',
         });
       }
@@ -105,7 +105,7 @@ export function PaymentTab({ siteId, totalSiteExpenses }: PaymentTabProps) {
     try {
         await updateDocWithId('site_payments', payment.id, {
             status: 'Released',
-            releaseDate: new Date().toISOString().split('T')[0],
+            releaseDate: todayISO(),
         });
         toast({ title: 'Deposit Released', description: 'The deposit has been marked as released.' });
     } catch (e) {

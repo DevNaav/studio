@@ -5,16 +5,17 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import {
-  collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, query, where, getDocs, writeBatch, serverTimestamp, getDoc, Query, orderBy
+  collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, query, where, getDocs, writeBatch, serverTimestamp, getDoc, Query, runTransaction
 } from "firebase/firestore";
 import { uploadFile, deleteUploadedFile } from '@/lib/file-upload';
 
 import { Site, Document as DocumentType, MaintenanceLog, InventoryItem, Labor, Attendance, Expense, Purchase, LaborTransaction, EmiPayment, MachineAttendance, MachineAttendanceStatus, Machine, Company, Payment, Sale, SalePayment, RentedMaterial, RentedMaterialAttendance, RentedMaterialAttendanceStatus } from '@/lib/types';
 import useLocalStorage from '@/hooks/use-local-storage';
 import { useAuth } from './auth-context';
-import { addMonths, format } from 'date-fns';
+import { addMonths, format, isValid, parseISO } from 'date-fns';
 import { extractDocumentData } from '@/ai/flows/extract-document-data-flow';
 import { getIdTokenOrThrow } from '@/lib/id-token';
+import { roundMoney, todayISO } from '@/lib/utils';
 
 
 // Standalone data fetching functions
@@ -138,7 +139,7 @@ export const addDocumentDb = async (
         name,
         url,
         filePath,
-        uploadDate: new Date().toISOString().split('T')[0],
+        uploadDate: todayISO(),
         // Firestore rejects undefined values, so only include optional fields when set.
         ...(expiryDate ? { expiryDate } : {}),
         createdAt: serverTimestamp(),
@@ -277,57 +278,78 @@ export const updateLaborerDb = async (laborId: string, data: Partial<Omit<Labor,
 };
 
 
+/** Firestore allows at most 500 writes per batch; big loan schedules are split across batches. */
+const commitInChunks = async (writes: ((batch: ReturnType<typeof writeBatch>) => void)[]) => {
+    for (let i = 0; i < writes.length; i += 450) {
+        const batch = writeBatch(db);
+        writes.slice(i, i + 450).forEach(write => write(batch));
+        await batch.commit();
+    }
+};
+
+/**
+ * Creates (or updates) a machine's monthly EMI schedule.
+ * Paid instalments are history and are never touched: editing a machine only replaces the
+ * instalments that are still unpaid. If the loan terms haven't changed, nothing is rewritten.
+ */
 export const generateEmiSchedule = async (companyId: string | null | undefined, machineId: string, startDate: string, tenureYears: number, emiAmount: number) => {
     if (!companyId) return;
-    const batch = writeBatch(db);
-    const numberOfMonths = tenureYears * 12;
-    const start = new Date(startDate);
+    const numberOfMonths = Math.round(tenureYears * 12);
+    const start = parseISO(startDate);
+    if (!isValid(start) || numberOfMonths <= 0 || !(emiAmount > 0)) return;
+    const amount = Math.round(emiAmount * 100) / 100;
 
-    // Clear existing schedule for this machine
+    const wanted = Array.from({ length: numberOfMonths }, (_, i) => format(addMonths(start, i + 1), 'yyyy-MM-dd'));
+
     const q = query(collection(db, 'emi_payments'), where("companyId", "==", companyId), where('machineId', '==', machineId));
-    const existingDocs = await getDocs(q);
-    existingDocs.forEach(doc => batch.delete(doc.ref));
+    const existing = (await getDocs(q)).docs.filter(d => !d.data().isDeleted);
+    const paidDates = new Set(existing.filter(d => d.data().status === 'Paid').map(d => d.data().dueDate as string));
+    const unpaid = existing.filter(d => d.data().status !== 'Paid');
 
-    for (let i = 0; i < numberOfMonths; i++) {
-        const dueDate = addMonths(start, i + 1);
+    // Same loan as before: keep the schedule as it is.
+    const sameSchedule = existing.length === numberOfMonths
+        && existing.every(d => wanted.includes(d.data().dueDate) && Math.abs((d.data().amount ?? 0) - amount) < 0.01);
+    if (sameSchedule) return;
+
+    const writes: ((batch: ReturnType<typeof writeBatch>) => void)[] = [];
+    // Soft-delete (not hard-delete) so every team role can save, and history stays recoverable.
+    unpaid.forEach(d => writes.push(batch => batch.update(d.ref, { isDeleted: true })));
+    // Paid instalments count towards the tenure even if the start date was changed later.
+    const paidOutsideSchedule = [...paidDates].filter(dueDate => !wanted.includes(dueDate)).length;
+    wanted.filter(dueDate => !paidDates.has(dueDate)).slice(paidOutsideSchedule).forEach(dueDate => {
         const newPayment: Omit<EmiPayment, 'id'> = {
             companyId,
             machineId,
-            dueDate: format(dueDate, 'yyyy-MM-dd'),
-            amount: emiAmount,
+            dueDate,
+            amount,
             status: 'Upcoming',
             isDeleted: false,
         };
-        const docRef = doc(collection(db, 'emi_payments'));
-        batch.set(docRef, newPayment);
-    }
-    await batch.commit();
+        writes.push(batch => batch.set(doc(collection(db, 'emi_payments')), newPayment));
+    });
+    await commitInChunks(writes);
 };
 
+/** Marks one EMI instalment as paid and books it as an expense of the machine's site (once only). */
 export const markEmiAsPaid = async (paymentId: string) => {
     const paymentDate = format(new Date(), 'yyyy-MM-dd');
     const paymentDocRef = doc(db, 'emi_payments', paymentId);
-    
-    const batch = writeBatch(db);
-    
-    const paymentDoc = await getDoc(paymentDocRef);
-    if (!paymentDoc.exists()) {
-        throw new Error("Payment document not found.");
-    }
-    const paymentData = paymentDoc.data() as EmiPayment;
-    const machineId = paymentData.machineId;
-    const companyId = paymentData.companyId;
-    if (!companyId) throw new Error("Payment is not associated with a company.");
 
-    batch.update(paymentDocRef, {
-        status: 'Paid',
-        paymentDate: paymentDate,
-    });
-    
-    const machineDoc = await getDoc(doc(db, 'machines', machineId));
-    if (machineDoc.exists()) {
-        const machine = machineDoc.data() as Machine;
-        if (machine.assignedSiteId) {
+    await runTransaction(db, async (tx) => {
+        const paymentDoc = await tx.get(paymentDocRef);
+        if (!paymentDoc.exists()) throw new Error("Payment document not found.");
+        const paymentData = paymentDoc.data() as EmiPayment;
+        // A double click (or two people at once) must not record the same instalment twice.
+        if (paymentData.status === 'Paid') throw new Error("This EMI is already marked as paid.");
+        const { machineId, companyId } = paymentData;
+        if (!companyId) throw new Error("Payment is not associated with a company.");
+
+        const machineDoc = await tx.get(doc(db, 'machines', machineId));
+
+        tx.update(paymentDocRef, { status: 'Paid', paymentDate });
+
+        const machine = machineDoc.exists() ? (machineDoc.data() as Machine) : null;
+        if (machine?.assignedSiteId) {
             const expenseData: Partial<Expense> = {
                 companyId,
                 siteId: machine.assignedSiteId,
@@ -335,15 +357,12 @@ export const markEmiAsPaid = async (paymentId: string) => {
                 category: 'EMI',
                 amount: paymentData.amount,
                 date: paymentDate,
-                machineId: machineId,
+                machineId,
                 isDeleted: false,
             };
-            const expenseDocRef = doc(collection(db, 'expenses'));
-            batch.set(expenseDocRef, expenseData);
+            tx.set(doc(collection(db, 'expenses')), expenseData);
         }
-    }
-
-    await batch.commit();
+    });
 };
 
 
@@ -351,7 +370,10 @@ export const getEmiPaymentsForMachine = async (companyId: string, machineId: str
     if (!companyId) return [];
     const q = query(collection(db, 'emi_payments'), where("companyId", "==", companyId), where('machineId', '==', machineId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EmiPayment));
+    return snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as EmiPayment))
+        .filter(payment => !payment.isDeleted)
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 };
 
 export const distributeFoodCostDb = async (siteId: string, date: string, totalCost: number, laborIds: string[]) => {
@@ -361,16 +383,18 @@ export const distributeFoodCostDb = async (siteId: string, date: string, totalCo
     const companyId = laborDoc.data().companyId;
     if (!companyId) return;
 
-    const costPerLaborer = totalCost / laborIds.length;
+    // Split in whole paise; the first worker takes the leftover paisa so the shares add up exactly.
+    const costPerLaborer = Math.floor((totalCost * 100) / laborIds.length) / 100;
+    const leftover = roundMoney(totalCost - costPerLaborer * laborIds.length);
     const batch = writeBatch(db);
 
-    laborIds.forEach(laborId => {
+    laborIds.forEach((laborId, index) => {
         const newTransaction: Omit<LaborTransaction, 'id' | 'isDeleted'> = {
             laborId,
             companyId,
             siteId,
             type: 'Food',
-            amount: costPerLaborer,
+            amount: index === 0 ? roundMoney(costPerLaborer + leftover) : costPerLaborer,
             date,
         };
         const docRef = doc(collection(db, 'labor_transactions'));
@@ -438,50 +462,55 @@ export const distributePaymentToSales = async (
   payment: Omit<SalePayment, 'amount'> & { amount: number }
 ) => {
   if (!companyId) throw new Error("Company context is missing.");
-  
+  if (!(payment.amount > 0)) throw new Error("Payment amount must be more than zero.");
+
+  // Only equality filters here: they work without a custom Firestore index. (The old query
+  // combined 'in' with orderBy, which needs a composite index that was never deployed, so
+  // every bulk payment failed.) Filtering and sorting happen below instead.
   const salesQuery = query(
     collection(db, 'sales'),
     where('companyId', '==', companyId),
     where('siteId', '==', siteId),
-    where('destinationSiteId', '==', (destinationId === 'external' ? '' : destinationId)),
-    where('paymentStatus', 'in', ['Unpaid', 'Partially Paid']),
-    orderBy('date', 'asc')
   );
-
+  const destination = destinationId === 'external' ? '' : destinationId;
   const salesSnapshot = await getDocs(salesQuery);
-  const unpaidSales = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sale));
+  const unpaidSales = salesSnapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() } as Sale))
+    .filter(sale => !sale.isDeleted
+      && (sale.destinationSiteId || '') === destination
+      && (sale.paymentStatus === 'Unpaid' || sale.paymentStatus === 'Partially Paid'))
+    .sort((a, b) => a.date.localeCompare(b.date)); // oldest first
 
-  let remainingPayment = payment.amount;
+  const outstanding = roundMoney(unpaidSales.reduce((sum, sale) => sum + Math.max(0, sale.salePrice - (sale.amountPaid || 0)), 0));
+  if (roundMoney(payment.amount) > outstanding) {
+    throw new Error(`Payment is more than the outstanding balance (${outstanding.toFixed(2)}).`);
+  }
+
+  let remainingPayment = roundMoney(payment.amount);
   const batch = writeBatch(db);
 
   for (const sale of unpaidSales) {
     if (remainingPayment <= 0) break;
 
-    const balanceDue = sale.salePrice - sale.amountPaid;
+    const balanceDue = roundMoney(sale.salePrice - (sale.amountPaid || 0));
+    if (balanceDue <= 0) continue;
     const paymentToApply = Math.min(remainingPayment, balanceDue);
-    
-    const newAmountPaid = sale.amountPaid + paymentToApply;
+
+    const newAmountPaid = roundMoney((sale.amountPaid || 0) + paymentToApply);
     const newPaymentStatus = newAmountPaid >= sale.salePrice ? 'Paid' : 'Partially Paid';
-    
+
     const paymentRecord: SalePayment = {
       ...payment,
       amount: paymentToApply,
     };
 
-    const saleRef = doc(db, 'sales', sale.id);
-    batch.update(saleRef, {
+    batch.update(doc(db, 'sales', sale.id), {
       amountPaid: newAmountPaid,
       paymentStatus: newPaymentStatus,
       paymentHistory: [...(sale.paymentHistory || []), paymentRecord],
     });
 
-    remainingPayment -= paymentToApply;
-  }
-  
-  if (remainingPayment > 0) {
-      // This case can happen if the payment exceeds the total outstanding balance.
-      // You might want to log this or handle it, e.g., by creating a credit note.
-      console.warn(`Payment of ${payment.amount} exceeded total outstanding balance by ${remainingPayment}.`);
+    remainingPayment = roundMoney(remainingPayment - paymentToApply);
   }
 
   await batch.commit();

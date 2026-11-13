@@ -28,7 +28,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Checkbox } from '@/components/ui/checkbox';
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 import { LogWorkDialog } from '../log-work-dialog';
 import { Badge } from '../ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -76,7 +76,7 @@ export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProp
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [selectedLabor, setSelectedLabor] = useState<Labor | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<LaborTransaction | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(todayISO());
   const [attendanceChanges, setAttendanceChanges] = useState<{[laborId: string]: AttendanceStatus}>({});
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -149,19 +149,22 @@ export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProp
         if (labor.wageType === 'Contract') {
             totalWages = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).reduce((sum, log) => sum + log.wageEarned, 0);
             daysWorked = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).length;
-        } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate)) {
+        } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate) && !isAfter(joiningDate, today)) {
             const monthsWorked = differenceInMonths(today, joiningDate) + 1;
             totalWages = monthsWorked * labor.wage; // Include current month
             daysWorked = differenceInDays(today, joiningDate);
         } else if (labor.wageType === 'Daily' && joiningDate && labor.wage) {
-            if (isValid(joiningDate)) {
+            // Someone joining in the future has earned nothing yet.
+            if (isValid(joiningDate) && !isAfter(joiningDate, today)) {
                 const allDays = eachDayOfInterval({ start: joiningDate, end: today });
+                // Look attendance up by date instead of scanning every record for every day.
+                const attendanceByDate = new Map(allAttendances.filter(a => a.laborId === labor.id).map(a => [a.date, a]));
                 let totalDailyWages = 0;
                 let daysWorkedCount = 0;
 
                 allDays.forEach(day => {
                     const dateStr = format(day, 'yyyy-MM-dd');
-                    const record = allAttendances.find(a => a.laborId === labor.id && a.date === dateStr);
+                    const record = attendanceByDate.get(dateStr);
                     const status = record?.status || (isBefore(day, today) ? 'Present' : 'Unmarked');
                     
                     let dayValue = 0;
@@ -211,7 +214,7 @@ export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProp
       });
     } else {
       if (isDialogOpen) {
-        form.reset({ name: '', role: '', wageType: undefined, wage: 0, dateOfJoining: new Date().toISOString().split('T')[0], contractType: '', pricePerUnit: 0, unit: '' });
+        form.reset({ name: '', role: '', wageType: undefined, wage: 0, dateOfJoining: todayISO(), contractType: '', pricePerUnit: 0, unit: '' });
       }
     }
   }, [selectedLabor, form, isDialogOpen]);

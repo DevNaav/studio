@@ -32,6 +32,7 @@ import { autoTable } from 'jspdf-autotable';
 import { AddRentalPaymentDialog } from './add-rental-payment-dialog';
 import { Label } from './ui/label';
 import { useAuth } from '@/context/auth-context';
+import { todayISO } from '@/lib/utils';
 
 
 const maintenanceFormSchema = z.object({
@@ -202,7 +203,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
     resolver: zodResolver(assignFormSchema),
     defaultValues: {
       siteId: undefined,
-      assignmentDate: new Date().toISOString().split('T')[0],
+      assignmentDate: todayISO(),
     },
   });
   
@@ -231,7 +232,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
         name: '',
         vehicleNumber: '',
         acquisition: undefined,
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
         dailyRentalPrice: 0,
         purchaseType: undefined,
         purchasePrice: 0,
@@ -256,7 +257,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
         machineId: machine.id,
         task: '',
         details: '',
-        scheduledDate: new Date().toISOString().split('T')[0],
+        scheduledDate: todayISO(),
         cost: 0,
         kmDriven: lastLog?.nextServiceKm || 0,
         nextServiceKm: 0,
@@ -272,7 +273,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
       fuelType: undefined,
       quantity: 0,
       cost: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: todayISO(),
     });
     setIsFuelDialogOpen(true);
   };
@@ -281,7 +282,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
     setSelectedMachine(machine);
     assignForm.reset({
       siteId: machine.assignedSiteId || undefined,
-      assignmentDate: machine.assignmentDate || new Date().toISOString().split('T')[0],
+      assignmentDate: machine.assignmentDate || todayISO(),
     });
     setIsAssignDialogOpen(true);
   };
@@ -494,7 +495,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
       await markEmiAsPaid(paymentId);
       toast({ title: 'Payment Marked', description: 'EMI payment has been marked as paid.' });
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to mark payment.' });
+      toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Failed to mark payment.' });
     }
   };
 

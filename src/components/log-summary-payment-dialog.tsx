@@ -30,7 +30,7 @@ import { distributePaymentToSales } from '@/context/site-context';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { useAuth } from '@/context/auth-context';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   amount: z.coerce.number().positive('Amount must be a positive number'),
@@ -68,7 +68,7 @@ export function LogSummaryPaymentDialog({
     if (open) {
       form.reset({
         amount: outstandingBalance > 0 ? outstandingBalance : 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
         method: undefined,
         notes: '',
       });
@@ -94,7 +94,7 @@ export function LogSummaryPaymentDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to distribute payment:", error);
-      toast({ variant: 'destructive', title: "Operation Failed", description: "Could not log and distribute the payment." });
+      toast({ variant: 'destructive', title: "Operation Failed", description: error instanceof Error ? error.message : "Could not log and distribute the payment." });
     } finally {
       setIsSubmitting(false);
     }

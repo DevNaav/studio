@@ -29,7 +29,7 @@ import { addDocToGlobalCollection } from '@/context/site-context';
 import { useAuth } from '@/context/auth-context';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 const formSchema = z.object({
   laborId: z.string({ required_error: "Please select a laborer." }).min(1, 'Please select a laborer.'),
@@ -69,7 +69,7 @@ export function AddLaborTransactionDialog({ open, onOpenChange, labors, siteId }
         type: undefined,
         paymentMethod: undefined,
         amount: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayISO(),
       });
     }
   }, [open, form]);

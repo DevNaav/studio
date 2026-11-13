@@ -32,7 +32,7 @@ import { autoTable } from 'jspdf-autotable';
 import { useAuth } from '@/context/auth-context';
 import { addDocWithSiteId } from '@/context/site-context';
 import { Loader2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, todayISO } from '@/lib/utils';
 
 const bbsItemSchema = z.object({
   description: z.string().min(1, 'Description is required'),
@@ -75,7 +75,7 @@ export function BbsDialog({ open, onOpenChange, siteId }: BbsDialogProps) {
     defaultValues: {
       projectName: '',
       drawingNumber: '',
-      date: new Date().toISOString().split('T')[0],
+      date: todayISO(),
       items: [{ description: '', diameter: 8, barCount: undefined, length: undefined, shape: '' }],
     },
   });

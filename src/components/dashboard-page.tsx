@@ -262,7 +262,7 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
                         </div>
                         <div className="flex items-center gap-4 cursor-pointer" onMouseEnter={rotateTip}>
                             {mascotBubble && (
-                                <div className="relative p-3 bg-primary/20 border border-primary/40 rounded-xl rounded-br-none text-xs text-white max-w-[200px] shadow-lg shadow-primary/20 animate-in fade-in-50 slide-in-from-right-5 hidden md:block select-none">
+                                <div className="relative p-3 bg-primary/20 border border-primary/40 rounded-xl rounded-br-none text-xs text-foreground max-w-[200px] shadow-lg shadow-primary/20 animate-in fade-in-50 slide-in-from-right-5 hidden md:block select-none">
                                     <p className="leading-relaxed">{mascotBubble}</p>
                                     <div className="absolute right-[-6px] bottom-3 w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-l-[6px] border-l-primary/40" />
                                 </div>
@@ -275,7 +275,7 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
                 </Card>
             </div>
         )}
-        <div className="flex items-center gap-4 scroll-anim">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 scroll-anim">
             <Button size="lg" onClick={() => setAddSiteOpen(true)}><Plus className="mr-2 h-4 w-4" /> New Site</Button>
             <Button size="lg" variant="outline" onClick={() => setActiveView('labor')}><Users className="mr-2 h-4 w-4" /> New Worker</Button>
             <Button size="lg" variant="outline" onClick={() => setActiveView('machines')}><Construction className="mr-2 h-4 w-4" /> New Machine</Button>

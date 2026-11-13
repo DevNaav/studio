@@ -795,7 +795,7 @@ function AppClientContent() {
                 </DropdownMenu>
           </SidebarFooter>
         </Sidebar>
-        <div className="flex flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-14 items-center gap-4 bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
               <SidebarTrigger />
               <div className="flex-1 flex items-center gap-4">
@@ -882,7 +882,7 @@ function AppClientContent() {
               </div>
             </header>
             <div className="px-6 py-3 bg-card/50 backdrop-blur-sm">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center justify-between gap-3">
                     <div className="flex items-center gap-4">
                       <CompanyLogoTile name={currentCompany?.name || userProfile?.name || ''} logoUrl={currentCompany?.logoUrl} />
                       <div className="min-w-0">
@@ -890,7 +890,7 @@ function AppClientContent() {
                           <p className="text-sm text-muted-foreground">{isSuperAdmin ? 'Super Administrator' : 'Company Dashboard'}</p>
                       </div>
                     </div>
-                    <div className="hidden md:flex items-center gap-4 text-sm">
+                    <div className="hidden lg:flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                       <div className="flex items-center gap-2">
                         <div className="glowing-pulse h-2 w-2 rounded-full bg-green-400" />
                         <span>Active Projects: <span className="font-semibold">{sites.filter(s => s.status !== 'Completed').length}</span></span>

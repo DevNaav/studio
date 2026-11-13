@@ -99,6 +99,21 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // ---------- activity log (companies/{companyId}/activity) ----------
+    // Add-only audit trail: any team member's actions are recorded, nobody (admins
+    // included) can edit or delete an entry, the time comes from the server and the
+    // entry must name the person actually signed in. Only admins can read it.
+    match /companies/{companyId}/activity/{entryId} {
+      allow read: if isSuperAdmin() || isAdminOf(companyId);
+      allow create: if (isMemberOf(companyId) || isSuperAdmin())
+        && request.resource.data.companyId == companyId
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.summary is string
+        && request.resource.data.summary.size() <= 300;
+      allow update, delete: if false;
+    }
+
     // ---------- public website content ----------
     match /site_content/{docId} {
       allow read: if true;

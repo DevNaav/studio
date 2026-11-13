@@ -31,6 +31,7 @@ import { LogSummaryPaymentDialog } from './log-summary-payment-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DashboardExpenseChart } from './dashboard-expense-chart';
 import { todayISO } from '@/lib/utils';
+import { logActivity } from '@/lib/activity-log';
 
 
 const saleMaterialItemSchema = z.object({
@@ -371,6 +372,10 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
         }
         
         await batch.commit();
+        logActivity({
+            companyId, siteId, action: 'create', entity: 'sales', entityId: saleDocRef.id, label: values.description,
+            summary: `Added sale "${values.description}" · Rs. ${values.salePrice.toLocaleString('en-IN')} to ${destinationIdForSale ? getSiteName(destinationIdForSale) : (values.buyerInfo || 'buyer')}`,
+        });
         toast({ title: "Sale Logged", description: `Sale of "${values.description}" logged. Inventory updated.` });
       }
 

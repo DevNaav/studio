@@ -67,7 +67,7 @@ function PaymentDialog({ customer, open, onOpenChange }: { customer: CustomerSum
     setSaving(true);
     setError(null);
     try {
-      await recordCustomerPayment(customer.sales.map(s => s.id), { amount: value, date, method, notes: notes.trim() });
+      await recordCustomerPayment(customer.sales.map(s => s.id), { amount: value, date, method, notes: notes.trim() }, customer.name);
       toast({ title: 'Payment recorded', description: `${formatCurrency(value)} from ${customer.name}, applied to the oldest bills first.` });
       onOpenChange(false);
     } catch (e) {

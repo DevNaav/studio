@@ -10,6 +10,7 @@ import { addMonths } from 'date-fns';
 import { deleteUserAccount } from '@/app/actions/delete-user';
 import { uploadFile } from '@/lib/file-upload';
 import { useToast } from '@/hooks/use-toast';
+import { activity, logActivity, setActivityActor } from '@/lib/activity-log';
 
 interface AuthContextType {
   user: User | null;
@@ -46,6 +47,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   const isSuperAdmin = !!userProfile && userProfile.role === 'SuperAdmin' && !userProfile.companyId;
+
+  // Tell the activity log who is making changes.
+  useEffect(() => {
+    setActivityActor(userProfile ? { uid: userProfile.uid, name: userProfile.name || userProfile.email || 'Unknown', role: String(userProfile.role) } : null);
+  }, [userProfile]);
   const isAdmin = !!userProfile && (userProfile.role === 'Admin' || isSuperAdmin);
   
   useEffect(() => {
@@ -299,7 +305,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Update Firestore user profile
     const userDocRef = doc(db, 'users', uid);
+    const before = uid !== user.uid ? (await getDoc(userDocRef)).data() : undefined;
     await updateDoc(userDocRef, firestoreUpdates);
+    // Log what an admin changed on someone else's account (role, site access...).
+    if (before) activity.updated('users', uid, before, firestoreUpdates as Record<string, any>);
   };
 
   const addUserByAdmin = async (name: string, email: string, pass: string, companyId: string, role: UserRole) => {
@@ -322,6 +331,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             companyId: companyId,
         };
         await setDoc(doc(db, 'users', newUser.uid), userProfileData);
+        logActivity({ companyId, action: 'create', entity: 'users', entityId: newUser.uid, label: name, summary: `Added team member "${name}" (${email}) as ${role}` });
         await sendEmailVerification(newUser);
         await signOut(provisioningAuth);
 
@@ -337,13 +347,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteUser = async (uid: string) => {
     if (!isAdmin || !user) throw new Error("Permission denied.");
+    const removed = (await getDoc(doc(db, 'users', uid))).data();
+    const logRemoval = () => removed && logActivity({
+      companyId: removed.companyId, action: 'delete', entity: 'users', entityId: uid, label: removed.name,
+      summary: `Removed team member "${removed.name || removed.email}"`,
+    });
     // Delete the login + profile on the server (needs Firebase Admin credentials).
     const result = await deleteUserAccount(uid, await user.getIdToken());
-    if (result.ok) return { authDeleted: true };
+    if (result.ok) {
+      logRemoval();
+      return { authDeleted: true };
+    }
     if (result.reason !== 'no-credentials') throw new Error(result.message);
     // No server credentials (e.g. local dev): remove the profile only. With no
     // profile, the security rules give this account no access to any data.
     await deleteDoc(doc(db, "users", uid));
+    logRemoval();
     return { authDeleted: false };
   };
 

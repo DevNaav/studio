@@ -17,6 +17,7 @@ import { extractDocumentData } from '@/ai/flows/extract-document-data-flow';
 import { getIdTokenOrThrow } from '@/lib/id-token';
 import { roundMoney, todayISO } from '@/lib/utils';
 import { allocatePayment } from '@/lib/customer-ledger';
+import { activity, logActivity } from '@/lib/activity-log';
 
 
 // Standalone data fetching functions
@@ -92,25 +93,48 @@ export const getSubCollection = async <T extends { isDeleted?: boolean }>(collec
 };
 
 
+// The shared save helpers below also write to the activity log (who did what, when).
+// Edits and deletes read the record first so the log can show what it was before.
+const readForLog = async (collectionName: string, docId: string) => {
+    try {
+        const snap = await getDoc(doc(db, collectionName, docId));
+        return snap.exists() ? snap.data() : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
 export const addDocWithSiteId = async (collectionName: string, companyId: string, siteId: string, data: object) => {
-    return await addDoc(collection(db, collectionName), { ...data, companyId, siteId, isDeleted: false });
+    const full = { ...data, companyId, siteId, isDeleted: false };
+    const ref = await addDoc(collection(db, collectionName), full);
+    activity.created(collectionName, ref.id, full);
+    return ref;
 };
 
 export const addDocToGlobalCollection = async (collectionName: string, companyId: string, data: object) => {
     if (!companyId) throw new Error("Company ID is required to add to a global collection.");
-    return await addDoc(collection(db, collectionName), { ...data, companyId, isDeleted: false });
+    const full = { ...data, companyId, isDeleted: false };
+    const ref = await addDoc(collection(db, collectionName), full);
+    activity.created(collectionName, ref.id, full);
+    return ref;
 };
 
 export const updateDocWithId = async (collectionName: string, docId: string, data: object) => {
-    return await updateDoc(doc(db, collectionName, docId), data);
+    const before = await readForLog(collectionName, docId);
+    await updateDoc(doc(db, collectionName, docId), data);
+    activity.updated(collectionName, docId, before, data as Record<string, any>);
 };
 
 export const deleteDocWithId = async (collectionName: string, docId: string) => {
-    return await deleteDoc(doc(db, collectionName, docId));
+    const before = await readForLog(collectionName, docId);
+    await deleteDoc(doc(db, collectionName, docId));
+    activity.deleted(collectionName, docId, before, true);
 };
 
 export const softDeleteDocWithId = async (collectionName: string, docId: string) => {
-    return await updateDoc(doc(db, collectionName, docId), { isDeleted: true });
+    const before = await readForLog(collectionName, docId);
+    await updateDoc(doc(db, collectionName, docId), { isDeleted: true });
+    activity.deleted(collectionName, docId, before);
 };
 
 const fileToDataURI = (file: File): Promise<string> => {
@@ -152,6 +176,7 @@ export const addDocumentDb = async (
     }
     
     const docRef = await addDoc(collection(db, "documents"), docData);
+    activity.created('documents', docRef.id, docData);
 
     // Run AI extraction in the background, but don't wait for it
     (async () => {
@@ -335,6 +360,7 @@ export const generateEmiSchedule = async (companyId: string | null | undefined, 
 export const markEmiAsPaid = async (paymentId: string) => {
     const paymentDate = format(new Date(), 'yyyy-MM-dd');
     const paymentDocRef = doc(db, 'emi_payments', paymentId);
+    let logEntry: Parameters<typeof logActivity>[0] | null = null;
 
     await runTransaction(db, async (tx) => {
         const paymentDoc = await tx.get(paymentDocRef);
@@ -363,7 +389,13 @@ export const markEmiAsPaid = async (paymentId: string) => {
             };
             tx.set(doc(collection(db, 'expenses')), expenseData);
         }
+        // Logged after the transaction: its body can run more than once if it retries.
+        logEntry = {
+            companyId, siteId: machine?.assignedSiteId, action: 'payment', entity: 'emi_payments', entityId: paymentId,
+            label: machine?.name, summary: `Marked EMI paid for ${machine?.name ?? 'machine'} · Rs. ${paymentData.amount.toLocaleString('en-IN')} (due ${paymentData.dueDate})`,
+        };
     });
+    if (logEntry) logActivity(logEntry);
 };
 
 
@@ -403,14 +435,17 @@ export const distributeFoodCostDb = async (siteId: string, date: string, totalCo
     });
 
     await batch.commit();
+    logActivity({
+        companyId, siteId, action: 'create', entity: 'labor_transactions',
+        summary: `Split food cost Rs. ${totalCost.toLocaleString('en-IN')} across ${laborIds.length} workers (${date})`,
+    });
 };
 
 export const assignRentedMachineToSite = async (machine: Machine, siteId: string, assignmentDate: string) => {
     const machineRef = doc(db, 'machines', machine.id);
-    await updateDoc(machineRef, { 
-      assignedSiteId: siteId === 'unassigned' ? null : siteId,
-      assignmentDate: assignmentDate 
-    });
+    const update = { assignedSiteId: siteId === 'unassigned' ? null : siteId, assignmentDate };
+    await updateDoc(machineRef, update);
+    activity.updated('machines', machine.id, machine as any, update);
 };
 
 export const updateCompanySubscription = async (companyId: string, data: Partial<Pick<Company, 'planId' | 'subscriptionStatus' | 'subscriptionEndDate' | 'billingCycle'>>) => {
@@ -431,6 +466,7 @@ export const updateCompanyLogo = async (companyId: string, file: File) => {
 
   const { url, path } = await uploadFile('logos', file, companyId);
   await updateDoc(doc(db, 'companies', companyId), { logoUrl: url, logoPath: path });
+  logActivity({ companyId, action: 'update', entity: 'companies', entityId: companyId, summary: 'Changed the company logo' });
 
   // Remove the old logo file from the server (older Firebase Storage logos are left alone).
   if (previous?.logoPath && previous.logoUrl?.startsWith('/api/files/')) {
@@ -515,6 +551,10 @@ export const distributePaymentToSales = async (
   }
 
   await batch.commit();
+  logActivity({
+    companyId, siteId, action: 'payment', entity: 'sales',
+    summary: `Recorded payment Rs. ${payment.amount.toLocaleString('en-IN')} (${payment.method}) against ${destination ? 'transfers to another site' : 'outside buyers'}`,
+  });
 };
 
 
@@ -522,11 +562,13 @@ export const distributePaymentToSales = async (
  * Records a payment from one customer and spreads it over their unpaid sales, oldest first.
  * Runs in a transaction, so two people logging payments at once can't double-apply.
  */
-export const recordCustomerPayment = async (saleIds: string[], payment: SalePayment) => {
+export const recordCustomerPayment = async (saleIds: string[], payment: SalePayment, customerName?: string) => {
   if (saleIds.length === 0) throw new Error('This customer has no sales.');
+  let companyId: string | undefined;
   await runTransaction(db, async (tx) => {
     const snaps = await Promise.all(saleIds.map(id => tx.get(doc(db, 'sales', id))));
     const sales = snaps.filter(s => s.exists()).map(s => ({ id: s.id, ...s.data() } as Sale));
+    companyId = sales[0]?.companyId;
     allocatePayment(sales, payment.amount).forEach(({ sale, apply, newPaid, status }) => {
       tx.update(doc(db, 'sales', sale.id), {
         amountPaid: newPaid,
@@ -537,6 +579,10 @@ export const recordCustomerPayment = async (saleIds: string[], payment: SalePaym
         }],
       });
     });
+  });
+  logActivity({
+    companyId, action: 'payment', entity: 'sales', label: customerName,
+    summary: `Recorded payment Rs. ${payment.amount.toLocaleString('en-IN')} (${payment.method}) from ${customerName ?? 'customer'}`,
   });
 };
 
@@ -583,16 +629,21 @@ export const SiteProvider = ({ children, setActiveView }: { children: ReactNode,
     if (!userProfile?.companyId) {
         throw new Error("User is not associated with a company.");
     }
-    await addDoc(collection(db, 'sites'), {...siteData, companyId: userProfile.companyId, isDeleted: false});
+    const full = { ...siteData, companyId: userProfile.companyId, isDeleted: false };
+    const ref = await addDoc(collection(db, 'sites'), full);
+    activity.created('sites', ref.id, full);
   };
 
   const updateSite = async (siteData: Site) => {
     const { id, ...data } = siteData;
+    const before = sites.find(s => s.id === id);
     await updateDoc(doc(db, 'sites', id), data);
+    activity.updated('sites', id, before as any, data);
   };
   
   const deleteSite = async (siteId: string) => {
     await updateDoc(doc(db, 'sites', siteId), { isDeleted: true });
+    activity.deleted('sites', siteId, sites.find(s => s.id === siteId) as any);
     if (selectedSiteId === siteId) {
         const remainingSites = sites.filter(s => s.id !== siteId);
         setSelectedSiteId(remainingSites.length > 0 ? remainingSites[0].id : null);

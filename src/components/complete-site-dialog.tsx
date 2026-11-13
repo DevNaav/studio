@@ -20,6 +20,7 @@ import { writeBatch, doc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useSite } from '@/context/site-context';
 import { todayISO } from '@/lib/utils';
+import { logActivity } from '@/lib/activity-log';
 
 const formSchema = z.object({
   completionDate: z.string().min(1, 'Completion date is required.'),
@@ -278,6 +279,10 @@ export function CompleteSiteDialog({ open, onOpenChange, site, company }: Comple
         }
         
         await batch.commit();
+        logActivity({
+            companyId, siteId: site.id, action: 'update', entity: 'sites', entityId: site.id, label: site.name,
+            summary: `Completed site "${site.name}" and moved its materials and tools`,
+        });
         
         toast({
             title: "Site Completion Process Finalized!",

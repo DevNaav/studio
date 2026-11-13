@@ -35,6 +35,7 @@ import { Badge } from '../ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '../ui/avatar';
+import { logActivity } from '@/lib/activity-log';
 
 
 const formSchema = z.object({
@@ -297,6 +298,12 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
         }
         
         await batch.commit();
+        const counts = Object.values(changesToSave).reduce((acc, st) => ({ ...acc, [st]: (acc[st] || 0) + 1 }), {} as Record<string, number>);
+        logActivity({
+            companyId, siteId, action: 'other', entity: 'attendances',
+            summary: `Saved attendance for ${selectedDate}: ${Object.entries(counts).map(([st, n]) => `${n} ${st}`).join(', ')}`
+                + ` (${Object.keys(changesToSave).map(id => labors.find(l => l.id === id)?.name ?? 'worker').slice(0, 8).join(', ')}${Object.keys(changesToSave).length > 8 ? '...' : ''})`,
+        });
 
         setAttendanceChanges({});
         toast({ title: 'Attendance Saved', description: `Attendance for ${selectedDate} has been updated.` });

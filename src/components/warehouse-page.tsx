@@ -25,6 +25,7 @@ import { writeBatch, doc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { todayISO } from '@/lib/utils';
+import { logActivity } from '@/lib/activity-log';
 
 const formSchema = z.object({
   name: z.string({ required_error: "Please select a material." }).min(1, { message: 'Please select a material.' }),
@@ -304,6 +305,10 @@ export function WarehousePage({ companyId }: WarehousePageProps) {
     
     try {
         await batch.commit();
+        logActivity({
+          companyId, siteId: values.siteId, action: 'other', entity: 'inventory', label: itemToTransfer.name,
+          summary: `Moved ${values.quantity} of "${itemToTransfer.name}" from warehouse to ${sites.find(s => s.id === values.siteId)?.name || 'site'}`,
+        });
         toast({ title: 'Transfer Successful', description: `${values.quantity} units of ${itemToTransfer.name} moved to site.` });
         setIsTransferDialogOpen(false);
     } catch(e) {

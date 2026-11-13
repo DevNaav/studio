@@ -30,6 +30,7 @@ import { writeBatch, collection, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { formatCurrency, todayISO } from '@/lib/utils';
+import { logActivity } from '@/lib/activity-log';
 
 const workLogSchema = z.object({
   laborerId: z.string().min(1, 'Please select a laborer.'),
@@ -105,6 +106,10 @@ export function LogWorkDialog({ open, onOpenChange, siteId, contractLabors }: Lo
 
     try {
       await batch.commit();
+      logActivity({
+        companyId, siteId, action: 'create', entity: 'work_logs', entityId: workLogRef.id, label: laborer.name,
+        summary: `Logged work for ${laborer.name}: ${values.quantity} ${laborer.unit || ''} · Rs. ${wageEarned.toLocaleString('en-IN')} (${values.date})`,
+      });
       toast({ title: 'Work Logged', description: `Logged ${values.quantity} ${laborer.unit} for ${laborer.name}, earning ${formatCurrency(wageEarned)}.` });
       onOpenChange(false);
     } catch (e) {

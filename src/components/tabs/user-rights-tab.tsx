@@ -26,6 +26,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '../ui/
 import { RoleManagementDialog } from '../role-management-dialog';
 import { addDocWithSiteId, updateDocWithId, softDeleteDocWithId } from '@/context/site-context';
 import { Switch } from '../ui/switch';
+import { logActivity } from '@/lib/activity-log';
 
 interface UserRightsTabProps {
     companyId: string | null | undefined;
@@ -205,6 +206,7 @@ export function UserRightsTab({ companyId, company }: UserRightsTabProps) {
   const handleLockToggle = async (companyId: string, isLocked: boolean) => {
     try {
       await updateDoc(doc(db, 'companies', companyId), { isLocked: isLocked });
+      logActivity({ companyId, action: 'update', entity: 'companies', entityId: companyId, summary: isLocked ? 'Locked the company portal' : 'Unlocked the company portal' });
       toast({ title: "Company Updated", description: `Portal lock status has been changed.` });
     } catch(e) {
       toast({ variant: 'destructive', title: "Error", description: "Failed to update lock status."});

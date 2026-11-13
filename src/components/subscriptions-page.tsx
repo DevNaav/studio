@@ -21,7 +21,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Input } from './ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { addDocToGlobalCollection, onGlobalCollectionSnapshot, softDeleteDocWithId, updateDocWithId } from '@/context/site-context';
+import { softDeleteDocWithId, updateDocWithId } from '@/context/site-context';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { addDoc, collection, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
 
 const planFormSchema = z.object({
@@ -73,7 +76,11 @@ export function SubscriptionsPage({ allCompanies }: SubscriptionsPageProps) {
   });
 
   useEffect(() => {
-    const unsub = onGlobalCollectionSnapshot('plans', null, (fetchedPlans) => {
+    // Plans are global (not tied to a company), so read the collection directly.
+    const unsub = onSnapshot(collection(db, 'plans'), (snapshot) => {
+      const fetchedPlans = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() } as Plan & { isDeleted?: boolean }))
+        .filter(p => !p.isDeleted);
       const combinedPlans = [...defaultPlans];
       const fetchedPlanNames = new Set(fetchedPlans.map(p => p.name));
 
@@ -129,7 +136,7 @@ export function SubscriptionsPage({ allCompanies }: SubscriptionsPageProps) {
         await updateDocWithId('plans', selectedPlan.id, planData);
         toast({ title: 'Plan Updated' });
       } else {
-        await addDocToGlobalCollection('plans', '', planData);
+        await addDoc(collection(db, 'plans'), { ...planData, isDeleted: false });
         toast({ title: 'Plan Created' });
       }
       setIsPlanDialogOpen(false);

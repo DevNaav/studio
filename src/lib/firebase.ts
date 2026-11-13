@@ -1,9 +1,8 @@
 
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
-import { getFirestore, Firestore } from "firebase/firestore";
-import { getStorage, FirebaseStorage } from "firebase/storage";
+import { getAuth, Auth, initializeAuth, inMemoryPersistence } from "firebase/auth";
+import { getFirestore, initializeFirestore, Firestore } from "firebase/firestore";
 import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Your web app's Firebase configuration
@@ -29,8 +28,27 @@ if (!getApps().length) {
 }
 
 const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+// Skip undefined fields (e.g. blank optional form inputs) instead of rejecting the whole write.
+let db: Firestore;
+try {
+    db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+} catch {
+    db = getFirestore(app); // already initialised (hot reload)
+}
+
+/**
+ * A separate Auth instance used only to create accounts for other people
+ * (admins adding team members). Creating a user on the main instance would sign
+ * the admin out and sign the new user in; this one keeps the admin's session intact.
+ */
+const SECONDARY_APP_NAME = 'user-provisioning';
+function getProvisioningAuth(): Auth {
+    const existing = getApps().find(a => a.name === SECONDARY_APP_NAME);
+    if (existing) return getAuth(existing);
+    const secondary = initializeApp(firebaseConfig, SECONDARY_APP_NAME);
+    return initializeAuth(secondary, { persistence: inMemoryPersistence });
+}
 
 // Export the initialized instances.
-export { app, auth, db, storage };
+// Files are stored on the app server (see src/lib/file-upload.ts), not Firebase Storage.
+export { app, auth, db, getProvisioningAuth };

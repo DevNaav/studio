@@ -4,15 +4,16 @@ export type UserRole = 'Admin' | 'User' | 'Site Manager' | 'Project Manager' | '
 export const userRoles: UserRole[] = ['Admin', 'User', 'Site Manager', 'Project Manager', 'Foreman', 'Engineer', 'Safety Officer', 'Accountant'];
 
 export interface UserProfile {
-    uid: string;
-    email: string | null;
-    name: string | null;
-    role: UserRole;
-    companyId?: string; // Associated company
-    assignedSites?: string[]; // Array of site IDs
-    hasCompletedOnboarding?: boolean;
-    mobileNumber?: string;
-    photoURL?: string;
+  uid: string;
+  email: string | null;
+  name: string | null;
+  role: UserRole;
+  companyId?: string; // Associated company
+  assignedSites?: string[]; // Array of site IDs
+  hasCompletedOnboarding?: boolean;
+  mobileNumber?: string;
+  photoURL?: string;
+  isDeleted?: boolean;
 }
 
 export type Permission = 'read' | 'write' | 'delete';
@@ -46,18 +47,18 @@ export interface Plan {
 
 
 export interface Company {
-    id: string;
-    name: string;
-    ownerId: string; // The UID of the user who owns this company
-    createdAt: string; // ISO 8601 date string
-    planId: FullPlanId;
-    billingCycle: BillingCycle;
-    subscriptionStatus: SubscriptionStatus;
-    subscriptionEndDate?: string; // ISO 8601 date string
-    enableOrderMaterials?: boolean;
-    logoUrl?: string;
-    logoPath?: string;
-    isLocked?: boolean;
+  id: string;
+  name: string;
+  ownerId: string; // The UID of the user who owns this company
+  createdAt: string; // ISO 8601 date string
+  planId: FullPlanId;
+  billingCycle: BillingCycle;
+  subscriptionStatus: SubscriptionStatus;
+  subscriptionEndDate?: string; // ISO 8601 date string
+  enableOrderMaterials?: boolean;
+  logoUrl?: string;
+  logoPath?: string;
+  isLocked?: boolean;
 }
 
 export interface Payment {
@@ -162,9 +163,11 @@ export const maintenanceCostAllocations: [MaintenanceCostAllocation, ...Maintena
 
 
 export interface MaintenanceLog {
-  id:string;
+  id: string;
   companyId: string;
   machineId: string;
+  /** Site the machine was assigned to when the log was created (if any). */
+  siteId?: string;
   task: string;
   details?: string;
   scheduledDate: string;
@@ -200,35 +203,36 @@ export type EmploymentStatus = 'On Roll' | 'Off Roll';
 export const employmentStatuses: [EmploymentStatus, ...EmploymentStatus[]] = ['On Roll', 'Off Roll'];
 
 export interface Labor {
-    id: string;
-    companyId: string;
-    siteId: string;
-    name: string;
-    role: string;
-    wageType: WageType;
-    wage?: number;
-    idNumber?: string;
-    dateOfJoining?: string;
-    idProofUrl?: string;
-    idProofFilePath?: string;
-    contractType?: string;
-    pricePerUnit?: number;
-    unit?: string;
-    isDeleted?: boolean;
-    employmentStatus?: EmploymentStatus;
+  id: string;
+  companyId: string;
+  siteId: string;
+  name: string;
+  role: string;
+  wageType: WageType;
+  wage?: number;
+  idNumber?: string;
+  dateOfJoining?: string;
+  idProofUrl?: string;
+  idProofFilePath?: string;
+  contractType?: string;
+  pricePerUnit?: number;
+  unit?: string;
+  isDeleted?: boolean;
+  employmentStatus?: EmploymentStatus;
 }
 
 export interface Attendance {
-    id: string;
-    companyId: string;
-    siteId: string;
-    laborId: string;
-    date: string; // YYYY-MM-DD
-    status: AttendanceStatus;
-    isDeleted?: boolean;
+  id: string;
+  companyId: string;
+  siteId: string;
+  laborId: string;
+  date: string; // YYYY-MM-DD
+  status: AttendanceStatus;
+  isDeleted?: boolean;
 }
 
-export type LaborTransactionType = 'Payment' | 'Work';
+// 'Food' entries are created by the shared food-expense feature (cost split per labourer); not user-selectable.
+export type LaborTransactionType = 'Payment' | 'Work' | 'Food';
 export const laborTransactionTypes: [LaborTransactionType, ...LaborTransactionType[]] = ['Payment', 'Work'];
 
 export type PaymentMethod = 'UPI' | 'Cash' | 'Bank Transfer';
@@ -303,12 +307,12 @@ export type MachineAttendanceStatus = 'Unmarked' | 'Present' | 'Absent' | 'Half-
 export const machineAttendanceStatuses: [MachineAttendanceStatus, ...MachineAttendanceStatus[]] = ['Unmarked', 'Present', 'Absent', 'Half-day'];
 
 export interface MachineAttendance {
-    id: string;
-    companyId: string;
-    machineId: string;
-    date: string; // YYYY-MM-DD
-    status: MachineAttendanceStatus;
-    isDeleted?: boolean;
+  id: string;
+  companyId: string;
+  machineId: string;
+  date: string; // YYYY-MM-DD
+  status: MachineAttendanceStatus;
+  isDeleted?: boolean;
 }
 
 export interface Purchase {
@@ -391,11 +395,11 @@ export type RentedMaterialStatus = 'Active' | 'Returned';
 export const rentedMaterialStatuses: [RentedMaterialStatus, ...RentedMaterialStatus[]] = ['Active', 'Returned'];
 
 export interface RentedMaterialPayment {
-    id: string;
-    amount: number;
-    date: string;
-    method: PaymentMethod;
-    notes: string;
+  id: string;
+  amount: number;
+  date: string;
+  method: PaymentMethod;
+  notes: string;
 }
 
 export interface RentedMaterial {
@@ -478,37 +482,37 @@ export interface DefectLiability {
 
 
 export interface SalePayment {
-    amount: number;
-    date: string;
-    method: PaymentMethod;
-    notes?: string;
+  amount: number;
+  date: string;
+  method: PaymentMethod;
+  notes?: string;
 }
 
 export type SalePaymentStatus = 'Unpaid' | 'Partially Paid' | 'Paid';
 
 export interface Sale {
-    id: string;
-    companyId: string;
-    siteId: string;
-    date: string;
-    gradeName: string;
-    quantity: number;
-    salePrice: number;
-    productionCost: number;
-    transportCost?: number;
-    buyerInfo?: string;
-    destinationSiteId?: string; // for internal transfers
-    materialsUsed: {
-        [materialName: string]: {
-            quantity: number;
-            unit: string;
-        }
-    };
-    amountPaid: number;
-    paymentStatus: SalePaymentStatus;
-    paymentHistory?: SalePayment[];
-    totalQuantityUnit?: string;
-    isDeleted?: boolean;
+  id: string;
+  companyId: string;
+  siteId: string;
+  date: string;
+  gradeName: string;
+  quantity: number;
+  salePrice: number;
+  productionCost: number;
+  transportCost?: number;
+  buyerInfo?: string;
+  destinationSiteId?: string; // for internal transfers
+  materialsUsed: {
+    [materialName: string]: {
+      quantity: number;
+      unit: string;
+    }
+  };
+  amountPaid: number;
+  paymentStatus: SalePaymentStatus;
+  paymentHistory?: SalePayment[];
+  totalQuantityUnit?: string;
+  isDeleted?: boolean;
 }
 
 export type SitePaymentType = 'Departmental Payment' | 'Deposit';
@@ -533,19 +537,19 @@ export interface SitePayment {
 }
 
 export interface Warranty {
-    id: string;
-    companyId: string;
-    siteId: string;
-    productName: string;
-    brand?: string;
-    serialNumber?: string;
-    purchaseDate: string;
-    endDate: string;
-    vendorInfo?: string;
-    issueDescription?: string;
-    isDeleted?: boolean;
-    type: WarrantyType;
-    responsibleParty: string;
+  id: string;
+  companyId: string;
+  siteId: string;
+  productName: string;
+  brand?: string;
+  serialNumber?: string;
+  purchaseDate: string;
+  endDate: string;
+  vendorInfo?: string;
+  issueDescription?: string;
+  isDeleted?: boolean;
+  type: WarrantyType;
+  responsibleParty: string;
 }
 
 export type WarrantyType = 'General' | 'Waterproofing' | 'Structural' | 'Electrical' | 'Plumbing' | 'Product';

@@ -23,22 +23,16 @@ import { onGlobalCollectionSnapshot, addDocToGlobalCollection, updateDocWithId, 
 import { useSite } from '@/context/site-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Badge } from './ui/badge';
-import { collection, query, where, getDocs, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format, isPast, differenceInDays, eachDayOfInterval, startOfMonth, endOfMonth, getDaysInMonth, getDate, isAfter, isBefore, isSameMonth } from 'date-fns';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import type jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { autoTable } from 'jspdf-autotable';
 import { AddRentalPaymentDialog } from './add-rental-payment-dialog';
 import { Label } from './ui/label';
 import { useAuth } from '@/context/auth-context';
 
-
-declare module 'jspdf' {
-    interface jsPDF {
-        autoTable: (options: any) => jsPDF;
-    }
-}
 
 const maintenanceFormSchema = z.object({
   machineId: z.string(),
@@ -112,12 +106,14 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
   const { toast } = useToast();
   const { userProfile } = useAuth();
   
+  // Only this user's company is needed (for the PDF header); reading all companies is blocked by the security rules.
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'companies'), (snapshot) => {
-        setAllCompanies(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company)));
+    if (!userProfile?.companyId) return;
+    const unsub = onSnapshot(doc(db, 'companies', userProfile.companyId), (snap) => {
+        setAllCompanies(snap.exists() ? [{ id: snap.id, ...snap.data() } as Company] : []);
     });
     return () => unsub();
-  }, []);
+  }, [userProfile?.companyId]);
   
   const currentCompany = allCompanies.find(c => c.id === userProfile?.companyId);
 
@@ -537,7 +533,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
         tableRows.push(paymentData);
     });
 
-    doc.autoTable({
+    autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
         startY: 35,
@@ -661,7 +657,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
     doc.text(`Rental Period: ${format(new Date(machine.assignmentDate || machine.date), 'PPP')} to ${format(today, 'PPP')}`, 14, yPos);
     yPos += 10;
 
-    doc.autoTable({
+    autoTable(doc, {
         body: [
             ['Daily Rate', `₹${(machine.dailyRentalPrice || 0).toLocaleString()}`],
             ['Total Days Used', `${rentSummary.daysUsed}`],
@@ -681,7 +677,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
         doc.setFontSize(14);
         doc.text('Payment Log', 14, yPos);
         yPos += 7;
-        doc.autoTable({
+        autoTable(doc, {
             head: [['Date', 'Amount Paid', 'Notes']],
             body: payments.map(p => [
                 format(new Date(p.date), 'PPP'),
@@ -697,7 +693,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
     doc.setFontSize(14);
     doc.text(`Daily Usage Log - ${format(currentMonth, 'MMMM yyyy')}`, 14, yPos);
     yPos += 7;
-    doc.autoTable({
+    autoTable(doc, {
         head: [['Date', 'Status']],
         body: monthlyReport.days.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');

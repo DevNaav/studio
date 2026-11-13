@@ -3,17 +3,18 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import {
   collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, query, where, getDocs, writeBatch, serverTimestamp, getDoc, Query, orderBy
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { uploadFile, deleteUploadedFile } from '@/lib/file-upload';
+
 import { Site, Document as DocumentType, MaintenanceLog, InventoryItem, Labor, Attendance, Expense, Purchase, LaborTransaction, EmiPayment, MachineAttendance, MachineAttendanceStatus, Machine, Company, Payment, Sale, SalePayment, RentedMaterial, RentedMaterialAttendance, RentedMaterialAttendanceStatus } from '@/lib/types';
 import useLocalStorage from '@/hooks/use-local-storage';
-import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './auth-context';
 import { addMonths, format } from 'date-fns';
 import { extractDocumentData } from '@/ai/flows/extract-document-data-flow';
+import { getIdTokenOrThrow } from '@/lib/id-token';
 
 
 // Standalone data fetching functions
@@ -24,7 +25,7 @@ export const onSubCollectionSnapshot = <T extends { isDeleted?: boolean }>(colle
     }
     const q = query(collection(db, collectionName), where("companyId", "==", companyId), where("siteId", "==", siteId));
     return onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T)).filter(item => !item.isDeleted);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T)).filter(item => !item.isDeleted);
         callback(data);
     }, (error) => {
         console.error(`Error fetching ${collectionName} for site ${siteId}:`, error);
@@ -55,7 +56,7 @@ export const onGlobalCollectionSnapshot = <T extends { isDeleted?: boolean }>(co
     }
         
     return onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T)).filter(item => !item.isDeleted);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T)).filter(item => !item.isDeleted);
         finalCallback(data);
     }, (error) => {
         console.error(`Error fetching global collection:`, error);
@@ -65,7 +66,7 @@ export const onGlobalCollectionSnapshot = <T extends { isDeleted?: boolean }>(co
 // Overload for the super admin case where the query is passed directly
 export const onCompanyCollectionSnapshot = <T,>(q: Query, callback: (data: T[]) => void) => {
     return onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
         callback(data);
     }, (error) => {
         console.error(`Error fetching collection:`, error);
@@ -79,7 +80,7 @@ export const getSubCollection = async <T extends { isDeleted?: boolean }>(collec
     }
     const q = query(collection(db, collectionName), where("companyId", "==", companyId), where("siteId", "==", siteId));
     const snapshot = await getDocs(q);
-    const allDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+    const allDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
 
     if (includeDeleted) {
         return allDocs;
@@ -123,24 +124,23 @@ export const addDocumentDb = async (
     companyId: string, 
     siteId: string, 
     data: { name: string, file: File, expiryDate?: string }, 
-    onExtractionComplete: () => void,
+    onExtractionComplete?: () => void,
     machineId?: string
 ) => {
     const { name, file, expiryDate } = data;
-    const filePath = `documents/${companyId}/${siteId}/${uuidv4()}-${file.name}`;
-    const fileRef = ref(storage, filePath);
-    
-    await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(fileRef);
+    // The file goes to the server's upload folder; Firestore only keeps the link and path.
+    const { url, path: filePath } = await uploadFile('documents', file, companyId);
 
-    const docData: Partial<DocumentType> = {
+
+    const docData: Partial<DocumentType> & { createdAt: ReturnType<typeof serverTimestamp> } = {
         companyId,
         siteId,
         name,
         url,
         filePath,
         uploadDate: new Date().toISOString().split('T')[0],
-        expiryDate: expiryDate || undefined,
+        // Firestore rejects undefined values, so only include optional fields when set.
+        ...(expiryDate ? { expiryDate } : {}),
         createdAt: serverTimestamp(),
         isDeleted: false,
     };
@@ -155,36 +155,38 @@ export const addDocumentDb = async (
     (async () => {
         try {
             const dataUri = await fileToDataURI(file);
-            const extractionResult = await extractDocumentData({ documentDataUri: dataUri });
+            const extractionResult = await extractDocumentData({ documentDataUri: dataUri }, await getIdTokenOrThrow());
             if (extractionResult.summary) {
                  await updateDoc(docRef, { extractedText: extractionResult.summary });
             }
         } catch (aiError) {
             console.error("AI data extraction failed:", aiError);
         } finally {
-            onExtractionComplete();
+            onExtractionComplete?.();
         }
     })();
 
 };
 
 export const deleteDocumentDb = async (docData: DocumentType) => {
-    if (docData.filePath) {
-      const fileRef = ref(storage, docData.filePath);
-      try {
-          await deleteObject(fileRef);
-      } catch (error: any) {
-         if (error.code !== 'storage/object-not-found') {
-              throw error;
-         }
-      }
+    // Old documents were stored in Firebase Storage (https URLs); only server-stored files can be removed here.
+    if (docData.filePath && docData.url?.startsWith('/api/files/')) {
+      await deleteUploadedFile(docData.filePath);
     }
     await softDeleteDocWithId("documents", docData.id);
 };
 
 
 export const addMaintenanceLogDb = async (companyId: string, machineId: string, data: Omit<MaintenanceLog, 'id' | 'isDeleted' | 'companyId'>) => {
-    const logRef = await addDocToGlobalCollection('maintenance_logs', companyId, { ...data, machineId });
+    // Remember which site the machine was on, so site reports (e.g. Defect Liability) can attribute the cost.
+    let siteId: string | undefined;
+    try {
+        const machineSnap = await getDoc(doc(db, 'machines', machineId));
+        siteId = machineSnap.exists() ? (machineSnap.data().assignedSiteId || undefined) : undefined;
+    } catch (error) {
+        console.warn('Could not look up machine site for maintenance log:', error);
+    }
+    const logRef = await addDocToGlobalCollection('maintenance_logs', companyId, { ...data, machineId, ...(siteId ? { siteId } : {}) });
     return logRef;
 };
 
@@ -239,14 +241,11 @@ export const addLaborerDb = async (companyId: string, data: Partial<Omit<Labor, 
     delete laborData.idProof;
 
     if (idProofFile) {
-        const filePath = `labor_ids/${companyId}/${uuidv4()}-${idProofFile.name}`;
-        const fileRef = ref(storage, filePath);
-        await uploadBytes(fileRef, idProofFile);
-        const url = await getDownloadURL(fileRef);
+        const { url, path } = await uploadFile('labor_ids', idProofFile, companyId);
         laborData.idProofUrl = url;
-        laborData.idProofFilePath = filePath;
+        laborData.idProofFilePath = path;
     }
-    
+
     return await addDocToGlobalCollection('labors', companyId, laborData);
 };
 
@@ -262,15 +261,19 @@ export const updateLaborerDb = async (laborId: string, data: Partial<Omit<Labor,
 
 
     if (idProofFile) {
-        const filePath = `labor_ids/${companyId}/${uuidv4()}-${idProofFile.name}`;
-        const fileRef = ref(storage, filePath);
-        await uploadBytes(fileRef, idProofFile);
-        const url = await getDownloadURL(fileRef);
+        const { url, path } = await uploadFile('labor_ids', idProofFile, companyId);
         laborData.idProofUrl = url;
-        laborData.idProofFilePath = filePath;
+        laborData.idProofFilePath = path;
     }
 
-    return await updateDocWithId('labors', laborId, laborData);
+    const result = await updateDocWithId('labors', laborId, laborData);
+
+    // Remove the replaced ID proof from the server (older Firebase Storage files are left alone).
+    const previous = laborDoc.data();
+    if (idProofFile && previous.idProofFilePath && previous.idProofUrl?.startsWith('/api/files/')) {
+        deleteUploadedFile(previous.idProofFilePath).catch(err => console.warn('Could not delete old ID proof:', err));
+    }
+    return result;
 };
 
 
@@ -390,32 +393,24 @@ export const updateCompanySubscription = async (companyId: string, data: Partial
   await updateDoc(companyRef, data);
 };
 
+/**
+ * Uploads a company logo to the server's upload folder and saves only its link
+ * (logoUrl) and storage path (logoPath) on the company document.
+ */
 export const updateCompanyLogo = async (companyId: string, file: File) => {
+  if (!file.type.startsWith('image/')) throw new Error('Please choose an image file (PNG, JPG or WebP).');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Logo is too large (max 5 MB).');
+
   const companyDoc = await getDoc(doc(db, 'companies', companyId));
-  const companyData = companyDoc.data() as Company | undefined;
+  const previous = companyDoc.data() as Company | undefined;
 
-  // Delete the old logo if it exists
-  if (companyData?.logoPath) {
-    const oldLogoRef = ref(storage, companyData.logoPath);
-    try {
-      await deleteObject(oldLogoRef);
-    } catch (error: any) {
-      // It's okay if the old object doesn't exist.
-      if (error.code !== 'storage/object-not-found') {
-        console.error("Could not delete old logo:", error);
-      }
-    }
+  const { url, path } = await uploadFile('logos', file, companyId);
+  await updateDoc(doc(db, 'companies', companyId), { logoUrl: url, logoPath: path });
+
+  // Remove the old logo file from the server (older Firebase Storage logos are left alone).
+  if (previous?.logoPath && previous.logoUrl?.startsWith('/api/files/')) {
+    deleteUploadedFile(previous.logoPath).catch(err => console.warn('Could not delete old logo:', err));
   }
-
-  const filePath = `company_logos/${companyId}/${uuidv4()}-${file.name}`;
-  const fileRef = ref(storage, filePath);
-  await uploadBytes(fileRef, file);
-  const url = await getDownloadURL(fileRef);
-
-  await updateDoc(doc(db, 'companies', companyId), {
-    logoUrl: url,
-    logoPath: filePath,
-  });
 };
 
 

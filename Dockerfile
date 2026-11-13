@@ -1,5 +1,5 @@
 # Stage 1: Install dependencies
-FROM node:18-alpine AS deps
+FROM node:22-alpine AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN node -e "const fs = require('fs'); const file = 'patches/ansi-color+0.2.1.pa
 RUN npm ci
 
 # Stage 2: Rebuild the source code only when needed
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -30,7 +30,7 @@ ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY
 RUN npm run build
 
 # Stage 3: Production image runner
-FROM node:18-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -45,6 +45,11 @@ COPY --from=builder /app/public ./public
 # Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
+
+# Uploaded files (logos, documents, ID proofs, ...) are stored here.
+# Mount a volume on /app/uploads so they survive container rebuilds (see docker-compose.yml).
+RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
+ENV UPLOAD_DIR=/app/uploads
 
 # Leverage Next.js standalone build to copy only production files and dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

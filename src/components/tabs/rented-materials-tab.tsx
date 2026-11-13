@@ -20,9 +20,7 @@ import { useAuth } from '@/context/auth-context';
 import { DeleteConfirmationDialog } from '../delete-confirmation-dialog';
 import { Badge } from '../ui/badge';
 import { format, isAfter, isBefore, eachDayOfInterval, startOfMonth, endOfMonth, getDaysInMonth, getDate } from 'date-fns';
-import { v4 as uuidv4 } from 'uuid';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
+import { uploadFile, deleteUploadedFile } from '@/lib/file-upload';
 import { LogRentedMaterialPaymentDialog } from '../log-rented-material-payment-dialog';
 import { FinalizeRentalDialog } from '../finalize-rental-dialog';
 import {
@@ -160,11 +158,13 @@ export function RentedMaterialsTab({ siteId }: RentedMaterialsTabProps) {
 
     try {
         if (file) {
-            const filePath = `rented_materials/${companyId}/${siteId}/${uuidv4()}-${file.name}`;
-            const fileRef = ref(storage, filePath);
-            await uploadBytes(fileRef, file);
-            data.documentUrl = await getDownloadURL(fileRef);
-            data.documentPath = filePath;
+            const uploaded = await uploadFile('rented_materials', file, companyId);
+            data.documentUrl = uploaded.url;
+            data.documentPath = uploaded.path;
+            // Remove the replaced file from the server (older Firebase Storage files are left alone).
+            if (selectedItem?.documentPath && selectedItem.documentUrl?.startsWith('/api/files/')) {
+                deleteUploadedFile(selectedItem.documentPath).catch(err => console.warn('Could not delete old file:', err));
+            }
         } else if (selectedItem?.documentUrl) {
             data.documentUrl = selectedItem.documentUrl;
             data.documentPath = selectedItem.documentPath;

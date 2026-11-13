@@ -115,8 +115,8 @@ export function DefectLiabilityPage({ companyId }: DefectLiabilityPageProps) {
     const getMaintenanceExpenseForLiability = (liability: DefectLiability) => {
         return maintenanceLogs
             .filter(log => {
-                const machineForLog = sites.find(s => s.id === log.siteId);
-                if (!machineForLog || machineForLog.id !== liability.siteId) return false;
+                // Only maintenance that was charged to this site (logs record the machine's site when created).
+                if (log.siteId !== liability.siteId || log.costAllocation === 'General Expenses') return false;
                 
                 const logDate = new Date(log.scheduledDate);
                 const completionDate = new Date(liability.completionDate);

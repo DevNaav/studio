@@ -4,10 +4,15 @@ import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useGLTF, OrbitControls, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
+import { getHeadClearanceRig, keepHandsOffHead, pickCharacterModel } from '@/lib/character-rig';
+
+// 4K textures on desktop, HD on phones (chosen once per page load).
+const MODEL_URL = pickCharacterModel();
 
 function Model() {
-  const group = useRef<THREE.Group>();
-  const { scene, animations } = useGLTF('/human.glb');
+  const group = useRef<THREE.Group>(null);
+  const { scene, animations } = useGLTF(MODEL_URL);
+  const handRig = React.useMemo(() => getHeadClearanceRig(scene), [scene]);
   const { actions } = useAnimations(animations, group as any);
 
   useEffect(() => {
@@ -22,13 +27,15 @@ function Model() {
     if (group.current) {
       group.current.rotation.y = Math.sin(state.clock.getElapsedTime() * 0.6) * 0.25;
     }
+    // Keep the head-scratching hand from sinking into the head.
+    if (handRig) keepHandsOffHead(handRig, scene);
   });
 
   return <primitive ref={group} object={scene} scale={2} position={[0, -2, 0]} />;
 }
 
 function HoloPedestal() {
-  const wireRef = useRef<THREE.Mesh>();
+  const wireRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
     if (wireRef.current) {
@@ -73,7 +80,7 @@ function HoloPedestal() {
 }
 
 function Sparkles() {
-  const pointsRef = useRef<THREE.Points>();
+  const pointsRef = useRef<THREE.Points>(null);
   const count = 25;
   
   const [positions] = React.useState(() => {

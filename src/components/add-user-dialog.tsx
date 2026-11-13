@@ -34,7 +34,8 @@ const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(userRoles, { required_error: 'Please select a role.'}),
+  // Roles include company-defined custom roles, so accept any non-empty role name.
+  role: z.string({ required_error: 'Please select a role.' }).min(1, 'Please select a role.'),
   companyId: z.string().optional(),
   mobileNumber: z.string().optional(),
 });

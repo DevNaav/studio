@@ -8,7 +8,8 @@
  * - RecommendMaintenanceTasksOutput - The return type for the recommendMaintenanceTasks function.
  */
 
-import {ai} from '@/ai/genkit';
+import { ai, aiMiddleware } from '@/ai/genkit';
+import { requireUser } from '@/ai/require-user';
 import {z} from 'genkit';
 
 const RecommendMaintenanceTasksInputSchema = z.object({
@@ -37,12 +38,15 @@ const RecommendMaintenanceTasksOutputSchema = z.object({
 export type RecommendMaintenanceTasksOutput = z.infer<typeof RecommendMaintenanceTasksOutputSchema>;
 
 export async function recommendMaintenanceTasks(
-  input: RecommendMaintenanceTasksInput
+  input: RecommendMaintenanceTasksInput,
+  idToken: string
 ): Promise<RecommendMaintenanceTasksOutput> {
+  await requireUser(idToken);
   return recommendMaintenanceTasksFlow(input);
 }
 
 const prompt = ai.definePrompt({
+  use: aiMiddleware,
   name: 'recommendMaintenanceTasksPrompt',
   input: {schema: RecommendMaintenanceTasksInputSchema},
   output: {schema: RecommendMaintenanceTasksOutputSchema},

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { AddSiteDialog } from '@/components/add-site-dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { InventoryItem, Labor, Site, Company, SubscriptionStatus, PlanId, BillingCycle, Warranty } from '@/lib/types';
+import { InventoryItem, Labor, Site, Company, SubscriptionStatus, PlanId, BillingCycle, Warranty, Task } from '@/lib/types';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -28,6 +28,9 @@ import { buttonVariants } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
 import { SettingsDialog } from '@/components/settings-page';
+import { CompleteProfile } from '@/components/complete-profile';
+import { CompanyLogoTile } from '@/components/company-logo-tile';
+import { ThemeMenu } from '@/components/theme-menu';
 import { DialogPortal, DialogTitle } from '@/components/ui/dialog';
 import { Logo } from '@/components/ui/logo';
 import { OnboardingFlow } from '@/components/onboarding-flow';
@@ -160,7 +163,7 @@ function LockedScreen({ title, description, onLogout }: { title: string, descrip
 }
 
 export function AppClient({ initialAllCompanies, initialSites }: AppClientProps) {
-  const { user, userProfile, loading: authLoading, sendVerificationEmail, isSuperAdmin } = useAuth();
+  const { user, userProfile, loading: authLoading, sendVerificationEmail, isSuperAdmin, profileMissing } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -169,6 +172,10 @@ export function AppClient({ initialAllCompanies, initialSites }: AppClientProps)
       router.push('/login');
     }
   }, [authLoading, user, router]);
+
+  if (!authLoading && user && profileMissing) {
+    return <CompleteProfile />;
+  }
 
   if (authLoading || !user || !userProfile) {
     return (
@@ -282,6 +289,29 @@ function AppClientContent() {
   }, [authLoading, user, userProfile, isSuperAdmin, setSites, setCompanies]);
 
   const companyIdForViews = isSuperAdmin ? superAdminSelectedCompanyId : userProfile?.companyId;
+
+  // Live data for the header stats (workforce size and today's tasks).
+  const [headerLabors, setHeaderLabors] = useState<Labor[]>([]);
+  const [headerTasks, setHeaderTasks] = useState<Task[]>([]);
+  useEffect(() => {
+    if (!companyIdForViews) {
+      setHeaderLabors([]);
+      setHeaderTasks([]);
+      return;
+    }
+    const unsubLabors = onGlobalCollectionSnapshot<Labor>('labors', companyIdForViews, setHeaderLabors);
+    const unsubTasks = onGlobalCollectionSnapshot<Task>('tasks', companyIdForViews, setHeaderTasks);
+    return () => { unsubLabors(); unsubTasks(); };
+  }, [companyIdForViews]);
+
+  const headerStats = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const open = headerTasks.filter(t => t.status !== 'Done');
+    return {
+      dueToday: open.filter(t => t.dueDate === today).length,
+      overdue: open.filter(t => t.dueDate && t.dueDate < today && t.status !== 'Blocked').length,
+    };
+  }, [headerTasks]);
   const currentCompany = allCompanies.find(c => c.id === companyIdForViews);
   
   useEffect(() => {
@@ -338,7 +368,7 @@ function AppClientContent() {
       setActiveView('dashboard');
       setSelectedSiteId(null);
     }
-    if (!isAdmin && (activeView === 'users' || activeView === 'documents' || activeView === 'subscription' || activeView === 'payment' || activeView === 'support' || activeView === 'documentation' || activeView === 'analysis' || activeView === 'sales' || activeView === 'threat-modeler' || activeView === 'defect-liability' || activeView === 'warranty-tracker' || activeView === 'landing-page-editor')) {
+    if (!isAdmin && (activeView === 'users' || activeView === 'documents' || activeView === 'subscription' || activeView === 'payment' || activeView === 'documentation' || activeView === 'analysis' || activeView === 'sales' || activeView === 'threat-modeler' || activeView === 'defect-liability' || activeView === 'warranty-tracker' || activeView === 'landing-page-editor')) {
         setActiveView('dashboard');
     }
   }, [selectedSiteId, sites, activeView, setSelectedSiteId, isAdmin]);
@@ -453,7 +483,7 @@ function AppClientContent() {
         <Sidebar>
             <SidebarHeader>
                 <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
-                    <Logo />
+                    <Logo className="h-9 w-9" />
                     <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                         <span className="text-xl font-semibold text-sidebar-primary truncate">Inventra</span>
                     </div>
@@ -747,7 +777,8 @@ function AppClientContent() {
                   )}
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4">
+                <ThemeMenu />
                 {isSuperAdmin ? (
                     <Popover open={companySelectorOpen} onOpenChange={setCompanySelectorOpen}>
                         <PopoverTrigger asChild>
@@ -789,7 +820,8 @@ function AppClientContent() {
                 ) : (
                     currentCompany && (
                       <Badge variant="outline" className="capitalize">
-                        Premium Plan
+                        {currentCompany.planId?.startsWith('premium') ? 'Premium' : 'Basic'} Plan
+                        {subscriptionStatus === 'Trial' && ' · Trial'}
                       </Badge>
                     )
                 )}
@@ -801,33 +833,28 @@ function AppClientContent() {
             </header>
             <div className="px-6 py-3 bg-card/50 backdrop-blur-sm">
                 <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 border">
-                          {currentCompany?.logoUrl ? (
-                              <AvatarImage src={currentCompany.logoUrl} alt={currentCompany.name} />
-                          ) : (
-                              <AvatarFallback className="bg-transparent">
-                                  <Briefcase />
-                              </AvatarFallback>
-                          )}
-                      </Avatar>
-                      <div>
-                          <h2 className="text-lg font-semibold">{currentCompany?.name || userProfile?.name}</h2>
+                    <div className="flex items-center gap-4">
+                      <CompanyLogoTile name={currentCompany?.name || userProfile?.name || ''} logoUrl={currentCompany?.logoUrl} />
+                      <div className="min-w-0">
+                          <h2 className="truncate text-xl font-bold tracking-tight capitalize">{currentCompany?.name || userProfile?.name}</h2>
                           <p className="text-sm text-muted-foreground">{isSuperAdmin ? 'Super Administrator' : 'Company Dashboard'}</p>
                       </div>
                     </div>
                     <div className="hidden md:flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <div className="glowing-pulse h-2 w-2 rounded-full bg-green-400" />
-                        <span>Total Projects: {sites.length}</span>
+                        <span>Active Projects: <span className="font-semibold">{sites.filter(s => s.status !== 'Completed').length}</span></span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="glowing-pulse h-2 w-2 rounded-full bg-blue-400" />
-                        <span>Total Staff: {allCompanies.length}</span>
+                        <span>Workforce: <span className="font-semibold">{headerLabors.length}</span></span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="glowing-pulse h-2 w-2 rounded-full bg-yellow-400" />
-                        <span>Today's Tasks: {12}</span>
+                        <span>
+                          Tasks Due Today: <span className="font-semibold">{headerStats.dueToday}</span>
+                          {headerStats.overdue > 0 && <span className="ml-1 text-red-400">({headerStats.overdue} overdue)</span>}
+                        </span>
                       </div>
                     </div>
                 </div>

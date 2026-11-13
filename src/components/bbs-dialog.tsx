@@ -28,17 +28,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Trash2, Download, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { autoTable } from 'jspdf-autotable';
 import { useAuth } from '@/context/auth-context';
 import { addDocWithSiteId } from '@/context/site-context';
 import { Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-
-declare module 'jspdf' {
-    interface jsPDF {
-        autoTable: (options: any) => jsPDF;
-    }
-}
 
 const bbsItemSchema = z.object({
   description: z.string().min(1, 'Description is required'),
@@ -140,14 +134,14 @@ export function BbsDialog({ open, onOpenChange, siteId }: BbsDialogProps) {
     doc.text(`Drawing No: ${data.drawingNumber}`, 14, 38);
     doc.text(`Date: ${data.date}`, 14, 44);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 50,
       head: [['S.No', 'Description', 'Dia (mm)', 'No. of Bars', 'Cut Length (m)', 'Total Length (m)', 'Kg/m', 'Total Wt (Kg)']],
       body: tableData,
       foot: [['', 'Total', '', '', '', '', '', totalWeightSum.toFixed(2)]],
       footStyles: { fontStyle: 'bold' },
       didDrawPage: (data) => {
-        const str = 'Page ' + doc.internal.getNumberOfPages();
+        const str = 'Page ' + doc.getNumberOfPages();
         doc.setFontSize(10);
         const pageSize = doc.internal.pageSize;
         const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();

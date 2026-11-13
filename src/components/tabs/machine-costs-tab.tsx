@@ -14,7 +14,7 @@ import { onGlobalCollectionSnapshot, onSubCollectionSnapshot, updateDocWithId, a
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { FinalizeRentalDialog } from '../finalize-rental-dialog';
+import { ReleaseMachineDialog } from '../release-machine-dialog';
 import { format, isAfter, eachDayOfInterval, differenceInDays } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
@@ -691,10 +691,11 @@ export function MachineCostsTab({ site }: MachineCostsTabProps) {
       </Card>
     </div>
      {machineToRelease && userProfile?.companyId && (
-        <FinalizeRentalDialog
+        <ReleaseMachineDialog
             open={isFinalizeRentalOpen}
             onOpenChange={setIsFinalizeRentalOpen}
-            material={machineToRelease}
+            machine={machineToRelease}
+            siteId={site.id}
             companyId={userProfile.companyId}
         />
      )}

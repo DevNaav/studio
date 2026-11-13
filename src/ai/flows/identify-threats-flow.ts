@@ -7,7 +7,8 @@
  * - identifyThreats - A function that handles the threat identification process.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, aiMiddleware } from '@/ai/genkit';
+import { requireUser } from '@/ai/require-user';
 import { z } from 'genkit';
 import {
   IdentifyThreatsInputSchema,
@@ -17,12 +18,15 @@ import {
 } from '@/lib/threats-types';
 
 export async function identifyThreats(
-  input: IdentifyThreatsInput
+  input: IdentifyThreatsInput,
+  idToken: string
 ): Promise<IdentifyThreatsOutput> {
+  await requireUser(idToken);
   return identifyThreatsFlow(input);
 }
 
 const prompt = ai.definePrompt({
+  use: aiMiddleware,
   name: 'identifyThreatsPrompt',
   input: { schema: IdentifyThreatsInputSchema },
   output: { schema: IdentifyThreatsOutputSchema },

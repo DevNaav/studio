@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Machine, paymentMethods } from '@/lib/types';
 import { addDocToGlobalCollection } from '@/context/site-context';
+import { useAuth } from '@/context/auth-context';
 import { Textarea } from './ui/textarea';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -46,6 +47,7 @@ interface AddRentalPaymentDialogProps {
 }
 
 export function AddRentalPaymentDialog({ open, onOpenChange, machine }: AddRentalPaymentDialogProps) {
+  const { userProfile } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -73,9 +75,13 @@ export function AddRentalPaymentDialog({ open, onOpenChange, machine }: AddRenta
   }, [open, machine, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!userProfile?.companyId) {
+      toast({ variant: 'destructive', title: "Not signed in", description: "Your company could not be determined. Please sign in again." });
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await addDocToGlobalCollection('rental_payments', values);
+      await addDocToGlobalCollection('rental_payments', userProfile.companyId, values);
 
       toast({ title: "Payment Logged", description: `A payment of ${formatCurrency(values.amount)} has been logged for ${machine.name}.` });
       onOpenChange(false);

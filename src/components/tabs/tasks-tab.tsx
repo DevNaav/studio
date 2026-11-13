@@ -140,7 +140,7 @@ export function TasksTab({ site }: TasksTabProps) {
 
     const taskData: Partial<Task> = {
         ...values,
-        assigneeName: assignee.name || assignee.email,
+        assigneeName: assignee.name || assignee.email || '',
         createdAt: selectedTask?.createdAt || new Date().toISOString(),
     };
     

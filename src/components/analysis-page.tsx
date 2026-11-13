@@ -17,16 +17,10 @@ import { Progress } from './ui/progress';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from './ui/button';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { autoTable } from 'jspdf-autotable';
 
 interface AnalysisPageProps {
   companyId: string | null | undefined;
-}
-
-declare module 'jspdf' {
-    interface jsPDF {
-        autoTable: (options: any) => jsPDF;
-    }
 }
 
 export function AnalysisPage({ companyId }: AnalysisPageProps) {
@@ -310,7 +304,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
     doc.text("Key Metrics", 14, y);
     y += 10;
     
-    (doc as any).autoTable({
+    autoTable(doc, {
         body: [
             ['Total Expenses', formatCurrency(kpiData.totalExpenses)],
             ['Total Sales', formatCurrency(kpiData.totalSales)],
@@ -340,7 +334,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
         doc.setFontSize(12);
         doc.text("Construction Sites", 14, y);
         y += 7;
-        (doc as any).autoTable({
+        autoTable(doc, {
             head: [['Site', 'Total Cost', 'Budget Used']],
             body: siteSummaries.map(site => [
                 site.name,
@@ -358,7 +352,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
         doc.setFontSize(12);
         doc.text("Manufacturing Units", 14, y);
         y += 7;
-        (doc as any).autoTable({
+        autoTable(doc, {
             head: [['Unit', 'Production Cost', 'Sales', 'Profit']],
             body: unitSummaries.map(unit => [
                 unit.name,

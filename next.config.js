@@ -3,13 +3,12 @@
 const nextConfig = {
   /* config options here */
   output: 'standalone',
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   images: {
+    // Uploaded files are served from /api/files/... with a ?sig= query string.
+    localPatterns: [
+      { pathname: '/api/files/**' },
+      { pathname: '/**', search: '' },
+    ],
     remotePatterns: [
       {
         protocol: 'https',

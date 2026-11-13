@@ -9,7 +9,8 @@
  * - ExtractDocumentDataOutput - The return type for the extractDocumentData function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, aiMiddleware } from '@/ai/genkit';
+import { requireUser } from '@/ai/require-user';
 import { z } from 'genkit';
 
 const ExtractDocumentDataInputSchema = z.object({
@@ -27,12 +28,19 @@ const ExtractDocumentDataOutputSchema = z.object({
 export type ExtractDocumentDataOutput = z.infer<typeof ExtractDocumentDataOutputSchema>;
 
 export async function extractDocumentData(
-  input: ExtractDocumentDataInput
+  input: ExtractDocumentDataInput,
+  idToken: string
 ): Promise<ExtractDocumentDataOutput> {
+  await requireUser(idToken);
+  // A data URI is ~1.37x the file size; cap uploads sent to the model at ~10 MB.
+  if (typeof input?.documentDataUri !== 'string' || input.documentDataUri.length > 14_000_000) {
+    throw new Error('Document is too large for AI extraction.');
+  }
   return extractDocumentDataFlow(input);
 }
 
 const prompt = ai.definePrompt({
+  use: aiMiddleware,
   name: 'extractDocumentDataPrompt',
   input: { schema: ExtractDocumentDataInputSchema },
   output: { schema: ExtractDocumentDataOutputSchema },

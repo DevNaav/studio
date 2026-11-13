@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Bot, User, Send, Sparkles, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { chat, ChatMessage } from '@/ai/flows/chat-flow';
+import { getIdTokenOrThrow } from '@/lib/id-token';
 import { useSite } from '@/context/site-context';
 import { ScrollArea } from './ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -125,8 +126,7 @@ export function AssistantPage() {
         history: messages,
         message: values.message,
         sites: sites.map(s => s.name),
-      });
-      console.log(assistantResponse,'assistantResponse')
+      }, await getIdTokenOrThrow());
       const assistantMessage: ChatMessage = { role: 'model', content: assistantResponse };
       setMessages(prev => [...prev, assistantMessage]);
 

@@ -3,28 +3,29 @@
 
 import * as React from 'react';
 import { useEffect } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { applyThemeClass, useThemePreference, type AppliedTheme } from '@/lib/theme';
 import { initializeAnimationMode } from '@/lib/animation-mode';
 
 export default function ClientLayout({
   children,
+  forcedTheme,
 }: {
   children: React.ReactNode
+  /** Pin a theme regardless of the user's choice (e.g. public pages stay dark). */
+  forcedTheme?: AppliedTheme
 }) {
-  const [themeName] = useLocalStorage('theme', 'futuristic');
-  
-  useEffect(() => {
-    // --- Theme ---
-    const body = document.body;
-    body.classList.remove('dark', 'construction', 'futuristic', 'default');
-    if (themeName !== 'default') {
-      body.classList.add(themeName);
-    }
+  // Follows the user's choice; "System" (the default) follows the device's light/dark mode.
+  const [, , appliedTheme] = useThemePreference();
+  const themeName = forcedTheme ?? appliedTheme;
 
-    // --- Animation ---
-    // This now runs only on the client, after hydration.
-    initializeAnimationMode();
+  useEffect(() => {
+    applyThemeClass(themeName);
   }, [themeName]);
+
+  useEffect(() => {
+    // Runs only on the client, after hydration.
+    initializeAnimationMode();
+  }, []);
 
   return (
     <>

@@ -32,6 +32,7 @@ import { Separator } from './ui/separator';
 import { cn } from '@/lib/utils';
 import { useSite } from '@/context/site-context';
 import { Label } from './ui/label';
+import type { UserProfile } from '@/lib/types';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -146,9 +147,9 @@ export function EditProfileDialog({ open, onOpenChange }: EditProfileDialogProps
         try {
             const photoURL = await updateUserProfilePicture(user.uid, file);
             setSelectedAvatar(photoURL);
-            toast({ title: 'Profile Picture Uploaded' });
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload image.' });
+            toast({ title: 'Picture ready', description: 'Press Save to update your profile picture.' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Upload Failed', description: error?.message || 'Could not process the image.' });
         } finally {
             setIsSubmitting(false);
         }

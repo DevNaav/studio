@@ -385,14 +385,11 @@ export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProp
   }
 
   const exportToCSV = (data: any[], filename: string) => {
-    const csv = Papa.unparse(data, {
-        transform: (value, field) => {
-            if (field === 'status' && value === 'Unmarked') {
-                return '';
-            }
-            return value;
-        }
-    });
+    // Papa.unparse has no per-value transform option, so blank out "Unmarked" statuses before converting.
+    const cleaned = data.map(row =>
+        row && typeof row === 'object' && row.status === 'Unmarked' ? { ...row, status: '' } : row
+    );
+    const csv = Papa.unparse(cleaned);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -492,7 +489,8 @@ export function LaborTab({ site, wageSummary: initialWageSummary }: LaborTabProp
   
   const handleDeleteTransactionConfirm = async () => {
     if (selectedTransaction) {
-      await deleteDocWithId('labor_transactions', selectedTransaction.id);
+      // Soft delete keeps an audit trail of payment records (lists already hide isDeleted items).
+      await softDeleteDocWithId('labor_transactions', selectedTransaction.id);
       toast({ title: 'Transaction Deleted' });
     }
     setIsTransactionDeleteOpen(false);

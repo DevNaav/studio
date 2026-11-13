@@ -3,10 +3,10 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, Settings, User, AlertTriangle, Loader2, UploadCloud } from 'lucide-react';
+import { Check, Settings, User, AlertTriangle, Loader2, UploadCloud, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { useThemePreference, LIGHT_THEME, DARK_THEME, type ThemePreference } from '@/lib/theme';
 import { useAuth } from '@/context/auth-context';
 import { EditProfileDialog } from './edit-profile-dialog';
 import { Separator } from './ui/separator';
@@ -22,7 +22,7 @@ interface SettingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const themes: { name: string; key: string; colors: { primary: string; secondary: string; accent: string; background: string; card: string; }; }[] = [
+const themes: { name: string; key: ThemePreference; colors: { primary: string; secondary: string; accent: string; background: string; card: string; }; }[] = [
   { name: 'Synthwave', key: 'dark', colors: { primary: '325 100% 60%', secondary: '260 30% 17%', accent: '190 100% 50%', background: '260 60% 7%', card: '260 45% 11%' } },
   { name: 'Construction', key: 'construction', colors: { primary: '45 96% 50%', secondary: '20 14.3% 4.1%', accent: '240 5.9% 90%', background: '48 6% 95%', card: '0 0% 100%' } },
   { name: 'Glacial Cyan', key: 'futuristic', colors: { primary: '195 100% 50%', secondary: '220 20% 14%', accent: '210 100% 60%', background: '220 30% 5%', card: '220 25% 9%' } }
@@ -30,8 +30,8 @@ const themes: { name: string; key: string; colors: { primary: string; secondary:
 
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const [theme, setTheme] = useLocalStorage('theme', 'dark');
-  const { userProfile, isSuperAdmin } = useAuth();
+  const [theme, setTheme, appliedTheme] = useThemePreference();
+  const { userProfile, isSuperAdmin, isAdmin } = useAuth();
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -39,14 +39,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
-  const handleThemeChange = (themeName: string) => {
-    setTheme(themeName);
-    const body = document.body;
-    body.classList.remove('dark', 'construction', 'futuristic', 'default');
-    if (themeName !== 'default') {
-      body.classList.add(themeName);
-    }
-  };
+  const handleThemeChange = (themeName: ThemePreference) => setTheme(themeName);
+  const themeLabel = (key: string) => themes.find(t => t.key === key)?.name ?? key;
   
   const handleClearData = async () => {
     setIsClearing(true);
@@ -75,9 +69,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         await updateCompanyLogo(userProfile.companyId, logoFile);
         toast({ title: 'Logo Uploaded', description: 'Your company logo has been updated.'});
         setLogoFile(null);
-    } catch(e) {
+    } catch(e: any) {
         console.error(e);
-        toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your logo.'});
+        toast({ variant: 'destructive', title: 'Upload Failed', description: e?.message || 'Could not upload your logo.'});
     } finally {
         setIsUploading(false);
     }
@@ -115,20 +109,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     </div>
                   </div>
                   
-                  {userProfile.companyId && (
+                  {userProfile.companyId && isAdmin && (
                      <>
                         <Separator />
                         <div className="space-y-4">
                             <div className="space-y-1">
                                 <h3 className="text-lg font-semibold">Company Logo</h3>
-                                <p className="text-sm text-muted-foreground">Upload a logo for your company. This will be displayed in the sidebar.</p>
+                                <p className="text-sm text-muted-foreground">Upload a PNG, JPG or WebP logo (max 5 MB; a square image looks best). It is shown in the sidebar.</p>
                             </div>
                              <div className='flex items-end gap-4 rounded-lg border p-4'>
                                 <div className="grid w-full max-w-sm items-center gap-1.5">
                                     <Input 
                                       id="logo-upload" 
                                       type="file" 
-                                      accept="image/png, image/jpeg"
+                                      accept="image/png, image/jpeg, image/webp"
                                       onChange={(e) => setLogoFile(e.target.files ? e.target.files[0] : null)}
                                     />
                                 </div>
@@ -150,9 +144,28 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   <div className="space-y-4">
                       <div className="space-y-1">
                           <h3 className="text-lg font-semibold">Appearance</h3>
-                          <p className="text-sm text-muted-foreground">Select a theme to change the application's color scheme.</p>
+                          <p className="text-sm text-muted-foreground">Choose a theme, or pick System to follow your device&apos;s light/dark mode automatically.</p>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="space-y-2">
+                              <Button
+                                  variant="outline"
+                                  className={cn(
+                                      "w-full h-24 flex flex-col items-start justify-between p-4",
+                                      theme === 'system' && "border-primary ring-2 ring-primary"
+                                  )}
+                                  onClick={() => handleThemeChange('system')}
+                              >
+                                  <div className="flex items-center gap-2">
+                                      {theme === 'system' ? <Check className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+                                      <span className="font-semibold">System</span>
+                                  </div>
+                                  <span className="text-left text-[11px] font-normal leading-snug text-muted-foreground">
+                                      Light: {themeLabel(LIGHT_THEME)} · Dark: {themeLabel(DARK_THEME)}
+                                      {theme === 'system' && <><br />Now: {themeLabel(appliedTheme)}</>}
+                                  </span>
+                              </Button>
+                          </div>
                       {themes.map((t) => (
                           <div key={t.key} className="space-y-2">
                               <Button

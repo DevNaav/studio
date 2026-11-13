@@ -25,13 +25,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Company, PlanId, planIds, SubscriptionStatus, subscriptionStatuses } from '@/lib/types';
+import { Company, PlanId, planIds, BillingCycle, SubscriptionStatus, subscriptionStatuses } from '@/lib/types';
 import { updateCompanySubscription } from '@/context/site-context';
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   planId: z.enum(planIds),
+  billingCycle: z.enum(['monthly', 'annually']),
   subscriptionStatus: z.enum(subscriptionStatuses),
   subscriptionEndDate: z.string().optional(),
 });
@@ -52,8 +53,11 @@ export function ManageSubscriptionDialog({ open, onOpenChange, company }: Manage
 
   useEffect(() => {
     if (company) {
+      // Stored plan ids look like "premium-annually"; the form edits the two parts separately.
+      const [plan, cycle] = (company.planId || 'basic-monthly').split('-') as [PlanId, BillingCycle];
       form.reset({
-        planId: company.planId,
+        planId: planIds.includes(plan) ? plan : 'basic',
+        billingCycle: company.billingCycle || (cycle === 'annually' ? 'annually' : 'monthly'),
         subscriptionStatus: company.subscriptionStatus,
         subscriptionEndDate: company.subscriptionEndDate ? format(new Date(company.subscriptionEndDate), 'yyyy-MM-dd') : '',
       });
@@ -63,7 +67,12 @@ export function ManageSubscriptionDialog({ open, onOpenChange, company }: Manage
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
-      await updateCompanySubscription(company.id, values);
+      await updateCompanySubscription(company.id, {
+        planId: `${values.planId}-${values.billingCycle}`,
+        billingCycle: values.billingCycle,
+        subscriptionStatus: values.subscriptionStatus,
+        ...(values.subscriptionEndDate ? { subscriptionEndDate: new Date(values.subscriptionEndDate).toISOString() } : {}),
+      });
       toast({ title: "Subscription Updated", description: `${company.name}'s subscription has been updated.` });
       onOpenChange(false);
     } catch (error) {
@@ -102,6 +111,27 @@ export function ManageSubscriptionDialog({ open, onOpenChange, company }: Manage
                         {planIds.map(id => (
                           <SelectItem key={id} value={id} className="capitalize">{id}</SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="billingCycle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Billing Cycle</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select billing cycle" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="annually">Annually</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

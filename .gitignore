@@ -37,3 +37,6 @@ pnpm-debug.log*
 # misc
 .DS_Store
 *.pem
+
+# Files uploaded through the app (stored on the server, not in git)
+/uploads/

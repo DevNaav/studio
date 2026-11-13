@@ -8,8 +8,9 @@
  * - ChatMessage - A single message in the chat history.
  */
 
-import { ai } from '@/ai/genkit';
-import { createNewSite, getProjectList } from '@/ai/tools/site';
+import { ai, aiMiddleware } from '@/ai/genkit';
+import { createNewSite } from '@/ai/tools/site';
+import { requireUser, AuthError } from '@/ai/require-user';
 import { z } from 'genkit';
 
 const ChatMessageSchema = z.object({
@@ -25,11 +26,20 @@ const ChatInputSchema = z.object({
 });
 export type ChatInput = z.infer<typeof ChatInputSchema>;
 
-export async function chat(input: ChatInput): Promise<string> {
+const MAX_MESSAGE_CHARS = 4000;
+const MAX_HISTORY_MESSAGES = 40;
+
+export async function chat(input: ChatInput, idToken: string): Promise<string> {
   try {
-    const output = await chatFlow(input);
+    await requireUser(idToken);
+    if (typeof input?.message !== 'string' || input.message.length > MAX_MESSAGE_CHARS) {
+      return 'Your message is too long. Please shorten it and try again.';
+    }
+    const trimmed = { ...input, history: (input.history ?? []).slice(-MAX_HISTORY_MESSAGES) };
+    const output = await chatFlow(trimmed);
     return output;
   } catch (error) {
+    if (error instanceof AuthError) return error.message;
     console.error('Error in chat flow:', error);
     return 'Sorry, an unexpected error occurred. Please try again later.';
   }
@@ -43,7 +53,9 @@ const chatFlow = ai.defineFlow(
   },
   async ({ history, message, sites }) => {
     const response = await ai.generate({
-      model: 'googleai/gemini-2.0-flash',
+      
+      use: aiMiddleware,
+      
       messages: [
         {
           role: 'system',
@@ -52,7 +64,8 @@ const chatFlow = ai.defineFlow(
               text: `You are an expert assistant for an application called Inventra.
 Your role is to help users understand how to use the application.
 Use the tools provided to answer user questions.
-${sites && sites.length > 0 ? `The user currently has these active construction/manufacturing projects in their account: ${sites.join(', ')}.` : ''}`,
+${sites && sites.length > 0 ? `The user currently has these active construction/manufacturing projects in their account: ${sites.join(', ')}.` : 'The user currently has no active construction/manufacturing projects in their account.'}
+Only mention projects from this list; never invent project names.`,
             },
           ],
         },
@@ -62,7 +75,7 @@ ${sites && sites.length > 0 ? `The user currently has these active construction/
         })),
         { role: 'user', content: [{ text: message }] },
       ],
-      tools: [createNewSite, getProjectList],
+      tools: [createNewSite],
     });
 
     return response.text;

@@ -13,6 +13,14 @@ services:
       - "80:3000"  # Maps standard HTTP port 80 on your VM to Next.js port 3000 in the container
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Secret used to sign file links; keep it stable or existing links stop working.
+      - FILE_SIGNING_SECRET=${FILE_SIGNING_SECRET}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+    volumes:
+      # Uploaded files live on the VM disk, not inside the container.
+      - inventra-uploads:/app/uploads
     restart: always
+
+volumes:
+  inventra-uploads:

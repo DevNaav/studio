@@ -1,12 +1,6 @@
-
 'use client';
 
-import type { Metadata } from 'next';
-import { useState, useEffect } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { LandingPageContent } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { LegalDocument } from '@/components/landing/legal-document';
 
 const defaultContent = `<h2>Introduction</h2>
 <p>This Privacy Policy explains how Inventra ("we," "us," or "our") collects, uses, stores, and protects information when you access or use our construction and operations management platform ("Service"). By using the Service, you agree to the collection and use of information in accordance with this policy.</p>
@@ -49,39 +43,14 @@ const defaultContent = `<h2>Introduction</h2>
 `;
 
 export default function PrivacyPage() {
-  const [content, setContent] = useState<string>(defaultContent);
-  const [loading, setLoading] = useState(true);
-  const lastUpdated = "2024-05-23";
-
-  useEffect(() => {
-    const docRef = doc(db, 'site_content', 'landing_page');
-    const unsubscribe = onSnapshot(docRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data() as LandingPageContent;
-        setContent(data.privacyPolicyContent || defaultContent);
-      }
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-16 sm:py-24">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-foreground">Privacy Policy</h1>
-        <p className="mt-4 text-lg text-muted-foreground">Last Updated: {lastUpdated}</p>
-      </div>
-      
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      ) : (
-         <article 
-            className="prose prose-invert prose-lg mx-auto max-w-none text-muted-foreground prose-headings:text-foreground prose-a:text-primary hover:prose-a:text-primary/80"
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
-      )}
-    </div>
+    <LegalDocument
+      title="Privacy Policy"
+      description="How Inventra collects, uses and protects your information and your company’s project data."
+      field="privacyPolicyContent"
+      defaultHtml={defaultContent}
+      lastUpdated="2024-05-23"
+      href="/privacy"
+    />
   );
 }

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, ShieldAlert, User, Bug, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { identifyThreats } from '@/ai/flows/identify-threats-flow';
+import { getIdTokenOrThrow } from '@/lib/id-token';
 import { IdentifyThreatsOutput } from '@/lib/threats-types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -32,7 +33,7 @@ export function ThreatModelerPage() {
     setIsLoading(true);
     setThreats(null);
     try {
-      const result = await identifyThreats({ description: values.description });
+      const result = await identifyThreats({ description: values.description }, await getIdTokenOrThrow());
       setThreats(result);
     } catch (error) {
       console.error('Threat modeling failed:', error);

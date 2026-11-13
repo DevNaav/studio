@@ -320,22 +320,18 @@ export function WarehousePage({ companyId }: WarehousePageProps) {
         'Total Stock Value': totalCost.toFixed(2),
         'Low Stock Threshold': lowStockThreshold || 'Not set',
     }));
-    Papa.unparse(dataToExport, {
-      complete: (result) => {
-        const csv = result.data;
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        if (link.download !== undefined) {
-          const url = URL.createObjectURL(blob);
-          link.setAttribute('href', url);
-          link.setAttribute('download', 'warehouse-summary.csv');
-          link.style.visibility = 'hidden';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-      }
-    });
+    // Papa.unparse is synchronous and returns the CSV text (it has no "complete" callback).
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'warehouse-summary.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   if (!companyId) return <Card><CardHeader><CardTitle>Warehouse</CardTitle><CardDescription>Select a company to view the warehouse.</CardDescription></CardHeader></Card>;

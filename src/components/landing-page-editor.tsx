@@ -8,14 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Save, Globe, CheckCircle, ArrowRight, Construction, Warehouse, Bot, Linkedin, Twitter, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import Image from 'next/image';
 import { Logo } from './ui/logo';
 import HumanCharacter from './HumanCharacter';
 import Link from 'next/link';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { uploadFile } from '@/lib/file-upload';
 import { LandingPageContent } from '@/lib/types';
 import * as LucideIcons from 'lucide-react';
 
@@ -73,15 +73,13 @@ const EditableImage = ({ src, onSave, hint }: { src: string, onSave: (newUrl: st
 
         setIsUploading(true);
         try {
-            const storageRef = ref(storage, `landing_page/${file.name}_${Date.now()}`);
-            await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(storageRef);
-            setImageUrl(downloadURL);
-            onSave(downloadURL);
+            const { url } = await uploadFile('landing', file);
+            setImageUrl(url);
+            onSave(url);
             toast({ title: 'Image updated successfully!' });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Image upload failed:', error);
-            toast({ variant: 'destructive', title: 'Upload failed', description: 'Could not upload the new image.' });
+            toast({ variant: 'destructive', title: 'Upload failed', description: error?.message || 'Could not upload the new image.' });
         } finally {
             setIsUploading(false);
         }
@@ -203,7 +201,7 @@ export default function LandingPageEditor() {
   const handleNestedUpdate = <T extends { [key: string]: any }>(section: keyof LandingPageContent, index: number, field: keyof T, value: string) => {
       setContent(prev => {
           if (!prev) return null;
-          const sectionArray = prev[section] as T[];
+          const sectionArray = prev[section] as unknown as T[];
           const newArray = [...sectionArray];
           newArray[index] = { ...newArray[index], [field]: value };
           return { ...prev, [section]: newArray };

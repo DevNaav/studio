@@ -121,14 +121,16 @@ export function UserRightsTab({ companyId, company }: UserRightsTabProps) {
   const handleDeleteConfirm = async () => {
     if (selectedUser) {
       try {
-        await deleteUser(selectedUser.uid);
-        toast({ title: 'User Deleted', description: `${selectedUser.name} has been deleted.` });
+        const { authDeleted } = await deleteUser(selectedUser.uid);
+        toast(authDeleted
+          ? { title: 'User Deleted', description: `${selectedUser.name} has been removed and can no longer sign in.` }
+          : { title: 'User Removed', description: `${selectedUser.name} no longer has access. Their login still exists — delete it under Firebase Console → Authentication.` });
         fetchUsers(); // Refresh the list
-      } catch (error) {
+      } catch (error: any) {
         toast({
           variant: 'destructive',
           title: 'Deletion Failed',
-          description: `Could not delete ${selectedUser.name}.`,
+          description: error?.message || `Could not delete ${selectedUser.name}.`,
         });
       }
     }

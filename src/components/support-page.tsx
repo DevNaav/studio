@@ -16,16 +16,30 @@ import { Loader2, Plus, Ticket as TicketIcon, Send, LifeBuoy } from 'lucide-reac
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { Ticket, TicketStatus, UserProfile, ticketStatuses } from '@/lib/types';
-import { addDocToGlobalCollection, onGlobalCollectionSnapshot, updateDocWithId } from '@/context/site-context';
+import { addDocToGlobalCollection, updateDocWithId } from '@/context/site-context';
 import { format, parseISO } from 'date-fns';
 import { UpdateTicketDialog } from './update-ticket-dialog';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Query } from 'firebase/firestore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { db } from '@/lib/firebase';
 
 const ticketSchema = z.object({
   subject: z.string().min(5, 'Subject must be at least 5 characters long.'),
   description: z.string().min(20, 'Description must be at least 20 characters long.'),
 });
+
+interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  company?: string;
+  subject: string;
+  reason?: string;
+  message: string;
+  status: 'New' | 'Read' | 'Replied';
+  createdAt: string;
+}
+const contactStatuses: ContactMessage['status'][] = ['New', 'Read', 'Replied'];
 
 interface SupportPageProps {
   userProfile: UserProfile;
@@ -39,23 +53,25 @@ export function SupportPage({ userProfile }: SupportPageProps) {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
   const { toast } = useToast();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
 
   useEffect(() => {
-    if (!userProfile.companyId) {
+    let q: Query;
+    if (isSuperAdmin) {
+      // Inventra support (SuperAdmin) sees every company's tickets.
+      q = query(collection(db, 'tickets'));
+    } else if (!userProfile.companyId) {
       setLoading(false);
       return;
-    }
-    setLoading(true);
-
-    let q;
-    if (isAdmin) {
-      // Admins see all tickets for their company
+    } else if (isAdmin) {
+      // Company admins see all tickets for their company
       q = query(collection(db, 'tickets'), where('companyId', '==', userProfile.companyId));
     } else {
-      // Regular users only see their own tickets, sorted by creation date
-      q = query(collection(db, 'tickets'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
+      // Regular users only see their own tickets (sorted below, so no composite index is needed)
+      q = query(collection(db, 'tickets'), where('userId', '==', userProfile.uid));
     }
+    setLoading(true);
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ticketsData = snapshot.docs
@@ -66,10 +82,32 @@ export function SupportPage({ userProfile }: SupportPageProps) {
       
       setTickets(ticketsData);
       setLoading(false);
+    }, (error) => {
+      console.error('Failed to load tickets:', error);
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [userProfile, isAdmin]);
+  }, [userProfile, isAdmin, isSuperAdmin]);
+
+  // Messages from the public contact form — SuperAdmin only.
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    return onSnapshot(collection(db, 'contact_messages'), (snapshot) => {
+      const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ContactMessage));
+      msgs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setContactMessages(msgs);
+    }, (error) => console.error('Failed to load contact messages:', error));
+  }, [isSuperAdmin]);
+
+  const updateContactStatus = async (id: string, status: ContactMessage['status']) => {
+    try {
+      await updateDocWithId('contact_messages', id, { status });
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not update the message.' });
+    }
+  };
 
   const form = useForm<z.infer<typeof ticketSchema>>({
     resolver: zodResolver(ticketSchema),
@@ -118,6 +156,7 @@ export function SupportPage({ userProfile }: SupportPageProps) {
 
   return (
     <div className="space-y-6">
+      {!isSuperAdmin && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><LifeBuoy />Support Center</CardTitle>
@@ -162,11 +201,12 @@ export function SupportPage({ userProfile }: SupportPageProps) {
           </Form>
         </CardContent>
       </Card>
-      
+      )}
+
       <Card>
         <CardHeader>
-            <CardTitle>Your Tickets</CardTitle>
-            <CardDescription>{isAdmin ? "Manage all support tickets for your company." : "Here are the tickets you've submitted."}</CardDescription>
+            <CardTitle className="flex items-center gap-2">{isSuperAdmin && <LifeBuoy />}{isSuperAdmin ? 'Support Inbox' : 'Your Tickets'}</CardTitle>
+            <CardDescription>{isSuperAdmin ? "Tickets from all companies. Update the status as you work on them." : isAdmin ? "All support tickets raised by your company." : "Here are the tickets you've submitted."}</CardDescription>
         </CardHeader>
         <CardContent>
           <div>
@@ -177,12 +217,12 @@ export function SupportPage({ userProfile }: SupportPageProps) {
                         {isAdmin && <TableHead>User</TableHead>}
                         <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
-                        {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                        {isSuperAdmin && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {loading ? (
-                        <TableRow><TableCell colSpan={isAdmin ? 5: 4} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
+                        <TableRow><TableCell colSpan={isSuperAdmin ? 5 : isAdmin ? 4 : 3} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
                     ) : tickets.length > 0 ? (
                         tickets.map(ticket => (
                             <TableRow key={ticket.id} className="border-b-0">
@@ -190,7 +230,7 @@ export function SupportPage({ userProfile }: SupportPageProps) {
                                 {isAdmin && <TableCell>{ticket.userName} ({ticket.userEmail})</TableCell>}
                                 <TableCell><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
                                 <TableCell>{format(parseISO(ticket.createdAt), 'PPP p')}</TableCell>
-                                {isAdmin && (
+                                {isSuperAdmin && (
                                     <TableCell className="text-right">
                                         <Button variant="outline" size="sm" onClick={() => handleUpdateTicket(ticket)}>
                                             Update Status
@@ -200,13 +240,50 @@ export function SupportPage({ userProfile }: SupportPageProps) {
                             </TableRow>
                         ))
                     ) : (
-                        <TableRow><TableCell colSpan={isAdmin ? 5: 4} className="h-24 text-center">No tickets found.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={isSuperAdmin ? 5 : isAdmin ? 4 : 3} className="h-24 text-center">No tickets found.</TableCell></TableRow>
                     )}
                 </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
+
+      {isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Contact Form Messages</CardTitle>
+            <CardDescription>Messages sent from the public Contact page.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {contactMessages.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No messages yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {contactMessages.map(msg => (
+                  <div key={msg.id} className="rounded-lg border p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{msg.subject}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {msg.name} · <a className="underline" href={'mailto:' + msg.email}>{msg.email}</a>
+                          {msg.company ? ' · ' + msg.company : ''} · {msg.reason || 'Other'} · {format(parseISO(msg.createdAt), 'PPP p')}
+                        </p>
+                      </div>
+                      <Select value={msg.status} onValueChange={(v) => updateContactStatus(msg.id, v as ContactMessage['status'])}>
+                        <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {contactStatuses.map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-sm">{msg.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {selectedTicket && (
         <UpdateTicketDialog 

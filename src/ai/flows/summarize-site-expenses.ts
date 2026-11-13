@@ -8,7 +8,8 @@
  * - SummarizeSiteExpensesOutput - The return type for the summarizeSiteExpenses function.
  */
 
-import {ai} from '@/ai/genkit';
+import { ai, aiMiddleware } from '@/ai/genkit';
+import { requireUser } from '@/ai/require-user';
 import {z} from 'genkit';
 
 const SummarizeSiteExpensesInputSchema = z.object({
@@ -32,12 +33,15 @@ const SummarizeSiteExpensesOutputSchema = z.object({
 export type SummarizeSiteExpensesOutput = z.infer<typeof SummarizeSiteExpensesOutputSchema>;
 
 export async function summarizeSiteExpenses(
-  input: SummarizeSiteExpensesInput
+  input: SummarizeSiteExpensesInput,
+  idToken: string
 ): Promise<SummarizeSiteExpensesOutput> {
+  await requireUser(idToken);
   return summarizeSiteExpensesFlow(input);
 }
 
 const prompt = ai.definePrompt({
+  use: aiMiddleware,
   name: 'summarizeSiteExpensesPrompt',
   input: {schema: SummarizeSiteExpensesInputSchema},
   output: {schema: SummarizeSiteExpensesOutputSchema},

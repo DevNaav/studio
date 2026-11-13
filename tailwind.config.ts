@@ -21,6 +21,10 @@ export default {
         code: ['var(--font-source-code-pro)', 'monospace'],
       },
       colors: {
+        // Public pages (home, login, sign-up): switch between light and dark via .public-light / .public-dark
+        page: 'rgb(var(--pub-page) / <alpha-value>)',
+        surface: 'rgb(var(--pub-surface) / <alpha-value>)',
+        ink: 'rgb(var(--pub-ink) / <alpha-value>)',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {
@@ -102,11 +106,37 @@ export default {
           '0%, 100%': { filter: 'drop-shadow(0 0 0 rgba(0,0,0,0))' },
           '50%': { filter: 'drop-shadow(0 0 6px rgba(0,230,230,0.03))' },
         },
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '15%, 55%': { transform: 'translateX(-8px)' },
+          '35%, 75%': { transform: 'translateX(8px)' },
+        },
+        'bubble-in': {
+          from: { opacity: '0', transform: 'translateY(6px) scale(0.96)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        drift: {
+          '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+          '50%': { transform: 'translate(30px, -20px) scale(1.08)' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'glow-subtle': 'glowSubtle 4s ease-in-out infinite',
+        shake: 'shake 0.45s ease-in-out',
+        'bubble-in': 'bubble-in 0.3s ease-out',
+        drift: 'drift 14s ease-in-out infinite',
+        float: 'float 6s ease-in-out infinite',
+        marquee: 'marquee 30s linear infinite',
       },
     },
   },

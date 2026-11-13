@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import Joyride, { Step, CallBackProps } from 'react-joyride';
+import { Joyride, type Step, type EventData } from 'react-joyride';
 
 interface GuidedTourProps {
     run: boolean;
@@ -13,7 +13,7 @@ const steps: Step[] = [
     {
         target: '#tour-step-1-dashboard',
         content: 'Welcome to your Dashboard! This is your main hub for viewing all active projects and key metrics at a glance.',
-        disableBeacon: true,
+        skipBeacon: true,
     },
     {
         target: '#tour-step-2-sidebar-global',
@@ -31,7 +31,7 @@ const steps: Step[] = [
 
 export function GuidedTour({ run, onTourComplete }: GuidedTourProps) {
     
-    const handleJoyrideCallback = (data: CallBackProps) => {
+    const handleJoyrideCallback = (data: EventData) => {
         const { status } = data;
         const finishedStatuses: string[] = ['finished', 'skipped'];
 
@@ -45,17 +45,18 @@ export function GuidedTour({ run, onTourComplete }: GuidedTourProps) {
             run={run}
             steps={steps}
             continuous
-            showProgress
-            showSkipButton
-            callback={handleJoyrideCallback}
+            onEvent={handleJoyrideCallback}
+            options={{
+                showProgress: true,
+                buttons: ['back', 'close', 'skip', 'primary'],
+                primaryColor: '#8b5cf6',
+                textColor: '#ffffff',
+                arrowColor: 'rgba(15, 10, 30, 0.9)',
+                backgroundColor: 'rgba(15, 10, 30, 0.9)',
+                zIndex: 1000,
+                spotlightRadius: 16,
+            }}
             styles={{
-                options: {
-                    primaryColor: '#8b5cf6',
-                    textColor: '#ffffff',
-                    arrowColor: 'rgba(15, 10, 30, 0.9)',
-                    backgroundColor: 'rgba(15, 10, 30, 0.9)',
-                    zIndex: 1000,
-                },
                 tooltip: {
                     borderRadius: '16px',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -68,7 +69,7 @@ export function GuidedTour({ run, onTourComplete }: GuidedTourProps) {
                     lineHeight: '1.6',
                     color: '#d1d5db',
                 },
-                buttonNext: {
+                buttonPrimary: {
                     backgroundColor: '#8b5cf6',
                     color: '#ffffff',
                     borderRadius: '8px',
@@ -85,9 +86,6 @@ export function GuidedTour({ run, onTourComplete }: GuidedTourProps) {
                 buttonSkip: {
                     color: '#9ca3af',
                     fontSize: '12px',
-                },
-                spotlight: {
-                    borderRadius: '16px',
                 }
             }}
         />

@@ -9,3 +9,10 @@ docs
 npm-debug.log
 Dockerfile
 .dockerignore
+
+# Never copy secrets into the image; pass them as build args / runtime env instead.
+.env
+.env.*
+
+# Files uploaded through the app (stored on the server, not in git)
+/uploads/

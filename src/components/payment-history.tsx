@@ -12,7 +12,7 @@ import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import type jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { autoTable } from 'jspdf-autotable';
 import { formatCurrency } from '@/lib/utils';
 
 interface PaymentHistoryProps {
@@ -68,7 +68,7 @@ export function PaymentHistory({ companyId }: PaymentHistoryProps) {
     doc.text(`Payment Date: ${format(new Date(payment.paymentDate), 'PPP')}`, 14, 46);
     doc.text(`Invoice ID: ${payment.id}`, 14, 52);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 65,
       head: [['Description', 'Amount']],
       body: [

@@ -1,0 +1,169 @@
+rules_version = '2';
+
+// Inventra Firestore security rules.
+//
+// Model: every business document carries a `companyId`. A user may only touch
+// documents of their own company (users/{uid}.companyId). A SuperAdmin
+// (role 'SuperAdmin' with no companyId) can access everything. SuperAdmin
+// accounts can only be created from the Firebase console / Admin SDK.
+//
+// Test in the emulator before deploying:  firebase emulators:start --only firestore
+// Deploy:                                 firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+    function profilePath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+    function hasProfile() {
+      return signedIn() && exists(profilePath());
+    }
+    function profile() {
+      return get(profilePath()).data;
+    }
+    function myCompanyId() {
+      return profile().get('companyId', null);
+    }
+    function isSuperAdmin() {
+      return hasProfile() && profile().role == 'SuperAdmin' && myCompanyId() == null;
+    }
+    function isMemberOf(companyId) {
+      return hasProfile() && companyId != null && myCompanyId() == companyId;
+    }
+    function isAdminOf(companyId) {
+      return isMemberOf(companyId) && profile().role == 'Admin';
+    }
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ---------- users ----------
+    match /users/{uid} {
+      allow read: if signedIn() && (
+        request.auth.uid == uid
+        || isSuperAdmin()
+        || isMemberOf(resource.data.get('companyId', null))
+      );
+
+      allow create: if signedIn() && request.resource.data.role != 'SuperAdmin' && (
+        // Self sign-up: becomes Admin of a company they just created (or of none yet).
+        (request.auth.uid == uid
+          && request.resource.data.role == 'Admin'
+          && (request.resource.data.get('companyId', null) == null
+              || get(/databases/$(database)/documents/companies/$(request.resource.data.companyId)).data.ownerId == uid))
+        // A company admin adding a team member to their own company.
+        || isAdminOf(request.resource.data.get('companyId', null))
+        || isSuperAdmin()
+      );
+
+      allow update: if signedIn() && request.resource.data.role != 'SuperAdmin' && (
+        isSuperAdmin()
+        // Admins manage members of their company but cannot move them to another company.
+        || (isAdminOf(resource.data.get('companyId', null))
+            && !changed().hasAny(['companyId', 'uid']))
+        // Users edit their own profile but not their role, company or site access.
+        || (request.auth.uid == uid
+            && !changed().hasAny(['role', 'companyId', 'assignedSites', 'uid']))
+      );
+
+      allow delete: if isSuperAdmin()
+        || (isAdminOf(resource.data.get('companyId', null)) && request.auth.uid != uid);
+    }
+
+    // ---------- companies ----------
+    match /companies/{companyId} {
+      allow read: if isSuperAdmin() || isMemberOf(companyId);
+
+      // Self sign-up creates one trial company owned by the new user.
+      allow create: if isSuperAdmin() || (
+        signedIn()
+        && !exists(profilePath())
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.subscriptionStatus == 'Trial'
+        && request.resource.data.get('isLocked', false) == false
+      );
+
+      // Company admins may edit their company (name, logo, plan) but not the
+      // owner, the lock flag or feature flags, which only a SuperAdmin controls.
+      // NOTE: plan/subscription fields stay client-writable while payments are
+      // simulated; move them server-side once a real payment gateway is added.
+      allow update: if isSuperAdmin() || (
+        isAdminOf(companyId)
+        && !changed().hasAny(['ownerId', 'isLocked', 'enableOrderMaterials', 'createdAt'])
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ---------- public website content ----------
+    match /site_content/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // ---------- subscription plans (global) ----------
+    match /plans/{planId} {
+      allow read: if signedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    // ---------- public contact form ----------
+    match /contact_messages/{messageId} {
+      allow create: if request.resource.data.keys().hasOnly(['name', 'email', 'company', 'subject', 'reason', 'message', 'status', 'createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+        && request.resource.data.email is string && request.resource.data.email.size() <= 200
+        && request.resource.data.subject is string && request.resource.data.subject.size() <= 200
+        && request.resource.data.message is string && request.resource.data.message.size() >= 20 && request.resource.data.message.size() <= 5000
+        && request.resource.data.status == 'New';
+      allow read, update, delete: if isSuperAdmin();
+    }
+
+    // ---------- support tickets ----------
+    match /tickets/{ticketId} {
+      // Users can always read tickets they opened (their query filters on userId only).
+      allow read: if isSuperAdmin()
+        || isAdminOf(resource.data.companyId)
+        || (signedIn() && resource.data.get('userId', null) == request.auth.uid);
+      allow create: if isSuperAdmin()
+        || (isMemberOf(request.resource.data.companyId)
+            && request.resource.data.get('userId', request.auth.uid) == request.auth.uid);
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ---------- payments (subscription history) ----------
+    match /payments/{paymentId} {
+      allow read: if isSuperAdmin() || isMemberOf(resource.data.companyId);
+      allow create: if isSuperAdmin() || isAdminOf(request.resource.data.companyId);
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ---------- every other collection: company-scoped business data ----------
+    // (sites, inventory, expenses, labors, attendances, machines, documents, sales, ...)
+    match /{collection}/{docId} {
+      function isGeneric() {
+        return !(collection in ['users', 'companies', 'site_content', 'tickets', 'payments', 'plans', 'contact_messages']);
+      }
+
+      allow read: if isGeneric() && (
+        isSuperAdmin() || isMemberOf(resource.data.get('companyId', null))
+      );
+      allow create: if isGeneric() && (
+        isSuperAdmin() || isMemberOf(request.resource.data.get('companyId', null))
+      );
+      allow update: if isGeneric() && (
+        isSuperAdmin() || (
+          isMemberOf(resource.data.get('companyId', null))
+          && request.resource.data.get('companyId', null) == resource.data.get('companyId', null)
+        )
+      );
+      // Permanent deletes are admin-only; the app normally "deletes" by setting isDeleted (an update).
+      allow delete: if isGeneric() && (
+        isSuperAdmin() || isAdminOf(resource.data.get('companyId', null))
+      );
+    }
+  }
+}

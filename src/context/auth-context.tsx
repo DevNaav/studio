@@ -2,11 +2,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, getProvisioningAuth } from '@/lib/firebase';
 import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, ConfirmationResult, verifyBeforeUpdateEmail, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc, query, where, addDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { UserProfile, UserRole } from '@/lib/types';
 import { addMonths } from 'date-fns';
+import { deleteUserAccount } from '@/app/actions/delete-user';
+import { uploadFile } from '@/lib/file-upload';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
@@ -20,13 +22,17 @@ interface AuthContextType {
   logIn: (email: string, pass: string) => Promise<User | null>;
   signUp: (email: string, pass: string, name: string, companyName?: string, mobileNumber?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  /** True when the user is signed in but has no profile yet (e.g. first Google sign-in). */
+  profileMissing: boolean;
+  completeProfile: (name: string, companyName: string, mobileNumber?: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   sendVerificationEmail: (user: User) => Promise<void>;
   getAllUsers: () => Promise<UserProfile[]>;
   updateUser: (uid: string, data: Partial<UserProfile>) => Promise<void>;
   updateUserProfilePicture: (uid: string, file: File) => Promise<string>;
   addUserByAdmin: (name: string, email: string, pass: string, companyId: string, role: UserRole) => Promise<void>;
-  deleteUser: (uid: string) => Promise<void>;
+  /** Deletes a team member. authDeleted=false means only the profile was removed (no server credentials). */
+  deleteUser: (uid: string) => Promise<{ authDeleted: boolean }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,6 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true); // For initial page load
   const [authLoading, setAuthLoading] = useState(false); // For login/logout actions
+  const [profileMissing, setProfileMissing] = useState(false);
   const { toast } = useToast();
 
   const isSuperAdmin = !!userProfile && userProfile.role === 'SuperAdmin' && !userProfile.companyId;
@@ -56,6 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Always fetch/listen to profile
             const userDocRef = doc(db, 'users', currentUser.uid);
             profileUnsubscribe = onSnapshot(userDocRef, (userDoc) => {
+                setProfileMissing(!userDoc.exists());
                 if (userDoc.exists()) {
                     const profileData = userDoc.data() as UserProfile;
                     setUserProfile(profileData);
@@ -87,6 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
             setUser(null);
             setUserProfile(null);
+            setProfileMissing(false);
             setLoading(false);
         }
     });
@@ -105,7 +114,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userCredential = await signInWithEmailAndPassword(auth, email, pass);
         // onAuthStateChanged will handle the rest
         return userCredential.user;
-    } catch (error) {
+    } catch (error: any) {
+        // Wrong password / unknown account are expected user errors: show a clear
+        // message instead of logging (console.error triggers Next's red dev overlay).
+        const friendly: Record<string, string> = {
+          'auth/invalid-credential': 'Incorrect email or password. If you signed up with Google, use "Sign in with Google" instead.',
+          'auth/user-not-found': 'No account found with this email.',
+          'auth/wrong-password': 'Incorrect email or password.',
+          'auth/invalid-email': 'Please enter a valid email address.',
+          'auth/user-disabled': 'This account has been disabled. Please contact your administrator.',
+          'auth/too-many-requests': 'Too many failed attempts. Please wait a few minutes or reset your password.',
+          'auth/network-request-failed': 'Network error. Please check your internet connection.',
+        };
+        if (error?.code && friendly[error.code]) {
+          console.warn("Login failed:", error.code);
+          throw new Error(friendly[error.code]);
+        }
         console.error("Login failed:", error);
         throw error;
     } finally {
@@ -113,19 +137,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
   
-  const signUp = async (email: string, pass: string, name: string, companyName?: string, mobileNumber?: string) => {
-    setAuthLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      const newUser = userCredential.user;
-      
-      let companyId;
-      const role: UserRole = 'Admin'; 
-
+  /** Creates a trial company owned by the user, then their Admin profile. */
+  const createCompanyAndProfile = async (newUser: User, name: string, companyName?: string, mobileNumber?: string) => {
+      let companyId: string | undefined;
       if (companyName) {
         const now = new Date();
-        const trialEndDate = addMonths(now, 2);
-
         const companyDocRef = await addDoc(collection(db, 'companies'), {
           name: companyName,
           ownerId: newUser.uid,
@@ -133,22 +149,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           planId: 'premium-annually',
           billingCycle: 'annually',
           subscriptionStatus: 'Trial',
-          subscriptionEndDate: trialEndDate.toISOString(),
+          subscriptionEndDate: addMonths(now, 2).toISOString(),
           enableOrderMaterials: true,
         });
         companyId = companyDocRef.id;
       }
-      
-      const newProfileData: UserProfile = { 
-        uid: newUser.uid, 
-        email: newUser.email, 
-        name, 
-        role,
-        companyId,
+      // Firestore rejects undefined values, so only include optional fields when set.
+      const newProfileData: UserProfile = {
+        uid: newUser.uid,
+        email: newUser.email,
+        name,
+        role: 'Admin',
         hasCompletedOnboarding: false,
-        mobileNumber,
+        ...(companyId ? { companyId } : {}),
+        ...(mobileNumber ? { mobileNumber } : {}),
+        ...(newUser.photoURL ? { photoURL: newUser.photoURL } : {}),
       };
       await setDoc(doc(db, 'users', newUser.uid), newProfileData);
+  };
+
+  /** Finishes setup for a signed-in user who has no profile yet (first Google sign-in). */
+  const completeProfile = async (name: string, companyName: string, mobileNumber?: string) => {
+    if (!user) throw new Error("Not signed in.");
+    await createCompanyAndProfile(user, name, companyName, mobileNumber);
+  };
+
+  const signUp = async (email: string, pass: string, name: string, companyName?: string, mobileNumber?: string) => {
+    setAuthLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      const newUser = userCredential.user;
+      
+      await createCompanyAndProfile(newUser, name, companyName, mobileNumber);
       await sendEmailVerification(newUser);
 
     } catch(error) {
@@ -223,7 +255,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.name) {
         authUpdates.displayName = data.name;
     }
-    if (data.photoURL) {
+    // Firebase Auth only accepts absolute http(s) URLs; uploaded pictures (/api/files/… links) live on the Firestore profile only.
+    if (data.photoURL && /^https?:\/\//.test(data.photoURL)) {
         authUpdates.photoURL = data.photoURL;
     }
     
@@ -246,12 +279,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const addUserByAdmin = async (name: string, email: string, pass: string, companyId: string, role: UserRole) => {
     if (!isAdmin) throw new Error("Only admins can add new users.");
-    
-    // In a real-world app, this logic should be moved to a secure backend function
-    // to avoid security risks of handling credentials on the client.
-    // This client-side implementation is for demonstration purposes.
+    if (role === 'SuperAdmin') throw new Error("SuperAdmin accounts can only be created in the Firebase console.");
+    if (!isSuperAdmin && companyId !== userProfile?.companyId) throw new Error("You can only add users to your own company.");
+
+    // Create the account on a separate Auth instance so the admin stays signed in.
+    // The admin (not the new user) then writes the profile, which the Firestore
+    // rules only allow for admins of that company.
+    const provisioningAuth = getProvisioningAuth();
     try {
-        const { user: newUser } = await createUserWithEmailAndPassword(auth, email, pass);
+        const { user: newUser } = await createUserWithEmailAndPassword(provisioningAuth, email, pass);
         
         const userProfileData: UserProfile = {
             uid: newUser.uid,
@@ -262,6 +298,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
         await setDoc(doc(db, 'users', newUser.uid), userProfileData);
         await sendEmailVerification(newUser);
+        await signOut(provisioningAuth);
 
     } catch (error: any) {
         toast({
@@ -274,16 +311,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteUser = async (uid: string) => {
-    if (!isAdmin) throw new Error("Permission denied.");
-    // This is also a placeholder for a secure, server-side function.
-    console.warn("deleteUser is a client-side simulation. For production, this should be a secure Firebase Function.");
+    if (!isAdmin || !user) throw new Error("Permission denied.");
+    // Delete the login + profile on the server (needs Firebase Admin credentials).
+    const result = await deleteUserAccount(uid, await user.getIdToken());
+    if (result.ok) return { authDeleted: true };
+    if (result.reason !== 'no-credentials') throw new Error(result.message);
+    // No server credentials (e.g. local dev): remove the profile only. With no
+    // profile, the security rules give this account no access to any data.
     await deleteDoc(doc(db, "users", uid));
+    return { authDeleted: false };
   };
 
-  const updateUserProfilePicture = async (uid: string, file: File): Promise<string> => {
-    // This function is not implemented in the provided context
-    console.log("updateUserProfilePicture not implemented in this context. Simulating success.");
-    return URL.createObjectURL(file);
+  /**
+   * Uploads a profile picture to the server's upload folder and returns its
+   * link; the link is saved on the profile (photoURL) when the user presses Save.
+   */
+  const updateUserProfilePicture = async (_uid: string, file: File): Promise<string> => {
+    if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
+    if (file.size > 5 * 1024 * 1024) throw new Error('Image is too large (max 5 MB).');
+    const { url } = await uploadFile('avatars', file);
+    return url;
   };
 
   const value = {
@@ -291,6 +338,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     userProfile,
     isSuperAdmin,
     isAdmin,
+    profileMissing,
+    completeProfile,
     loading,
     authLoading,
     logout,

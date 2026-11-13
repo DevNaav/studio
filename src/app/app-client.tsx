@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Building, Building2, Plus, LayoutGrid, FileText, AlertCircle, Loader2, LogOut, Users, Construction, Bot, User, IndianRupee, ChevronsUpDown, Crown, CheckCircle2, ChevronDown, LifeBuoy, Ticket, BookText, Settings as SettingsIcon, ShieldAlert, BarChart, HardHat, Tractor, Wrench, KanbanSquare, Warehouse, ShoppingCart, Factory, ChevronRight, ListTodo, ShieldCheck, Coins, Receipt, Briefcase, Dot, Lock, Edit, Mail } from 'lucide-react';
+import { Building, Building2, Plus, LayoutGrid, FileText, AlertCircle, Loader2, LogOut, Users, Construction, Bot, User, IndianRupee, ChevronsUpDown, Crown, CheckCircle2, ChevronDown, LifeBuoy, Ticket, BookText, Settings as SettingsIcon, ShieldAlert, BarChart, HardHat, Tractor, Wrench, KanbanSquare, Warehouse, ShoppingCart, Factory, ChevronRight, ListTodo, ShieldCheck, Coins, Receipt, Briefcase, Dot, Lock, Edit, Mail, BookUser } from 'lucide-react';
 import { SiteProvider, useSite } from '@/context/site-context';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
@@ -64,12 +64,13 @@ const UserRightsTab = dynamic(() => import('@/components/tabs/user-rights-tab').
 const SupportPage = dynamic(() => import('@/components/support-page').then(mod => mod.SupportPage), { loading: LoadingComponent });
 const DocumentationPage = dynamic(() => import('@/components/documentation-page').then(mod => mod.DocumentationPage), { loading: LoadingComponent });
 const DefectLiabilityPage = dynamic(() => import('@/components/defect-liability-page').then(mod => mod.DefectLiabilityPage), { loading: LoadingComponent });
+const CustomersPage = dynamic(() => import('@/components/customers-page').then(mod => mod.CustomersPage), { loading: LoadingComponent });
 const WarrantyTrackerPage = dynamic(() => import('@/components/warranty-tracker-page').then(mod => mod.WarrantyTrackerPage), { loading: LoadingComponent });
 const LandingPageEditor = dynamic(() => import('@/components/landing-page-editor'), { loading: LoadingComponent });
 const ContactPageEditor = dynamic(() => import('@/components/contact-page-editor'), { loading: LoadingComponent });
 
 
-export type ActiveView = 'dashboard' | 'sites' | 'machines' | 'labor' | 'documents' | 'users' | 'assistant' | 'companies' | 'subscription' | 'payment' | 'completed-sites' | 'support' | 'documentation' | 'theft' | 'analysis' | 'warehouse' | 'sales' | 'manufacturing' | 'threat-modeler' | 'defect-liability' | 'warranty-tracker' | 'landing-page-editor' | 'contact-page-editor';
+export type ActiveView = 'dashboard' | 'sites' | 'machines' | 'labor' | 'documents' | 'users' | 'assistant' | 'companies' | 'subscription' | 'payment' | 'completed-sites' | 'support' | 'documentation' | 'theft' | 'analysis' | 'warehouse' | 'sales' | 'manufacturing' | 'threat-modeler' | 'defect-liability' | 'warranty-tracker' | 'customers' | 'landing-page-editor' | 'contact-page-editor';
 
 function ProjectsMenu({ 
   projects, 
@@ -369,7 +370,7 @@ function AppClientContent() {
       setActiveView('dashboard');
       setSelectedSiteId(null);
     }
-    if (!isAdmin && (activeView === 'users' || activeView === 'documents' || activeView === 'subscription' || activeView === 'payment' || activeView === 'documentation' || activeView === 'analysis' || activeView === 'sales' || activeView === 'threat-modeler' || activeView === 'defect-liability' || activeView === 'warranty-tracker' || activeView === 'landing-page-editor')) {
+    if (!isAdmin && (activeView === 'users' || activeView === 'documents' || activeView === 'subscription' || activeView === 'payment' || activeView === 'documentation' || activeView === 'analysis' || activeView === 'sales' || activeView === 'threat-modeler' || activeView === 'defect-liability' || activeView === 'warranty-tracker' || activeView === 'customers' || activeView === 'landing-page-editor')) {
         setActiveView('dashboard');
     }
   }, [selectedSiteId, sites, activeView, setSelectedSiteId, isAdmin]);
@@ -422,6 +423,7 @@ function AppClientContent() {
         case 'threat-modeler': return 'AI Threat Modeler';
         case 'defect-liability': return 'Defect Liability';
         case 'warranty-tracker': return 'Warranty Tracker';
+        case 'customers': return 'Customers';
         case 'landing-page-editor': return 'Landing Page Editor';
         case 'contact-page-editor': return 'Contact Page Editor';
         default: return 'Dashboard';
@@ -600,6 +602,14 @@ function AppClientContent() {
                             <SidebarMenuButton onClick={() => handleMenuClick('warranty-tracker')} isActive={activeView === 'warranty-tracker'} tooltip="Warranty Tracker" className="sidebar-menu-button">
                                 <Receipt />
                                 <span className="group-data-[collapsible=icon]:hidden">Warranty Tracker</span>
+                            </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        )}
+                        {isAdmin && (
+                            <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => handleMenuClick('customers')} isActive={activeView === 'customers'} tooltip="Customers" className="sidebar-menu-button">
+                                <BookUser />
+                                <span className="group-data-[collapsible=icon]:hidden">Customers</span>
                             </SidebarMenuButton>
                             </SidebarMenuItem>
                         )}
@@ -949,6 +959,7 @@ function AppClientContent() {
             {activeView === 'threat-modeler' && isAdmin && <ThreatModelerPage />}
             {activeView === 'defect-liability' && isAdmin && <DefectLiabilityPage companyId={companyIdForViews} />}
             {activeView === 'warranty-tracker' && isAdmin && <WarrantyTrackerPage companyId={companyIdForViews} />}
+            {activeView === 'customers' && isAdmin && <CustomersPage companyId={companyIdForViews} company={currentCompany} sites={sites} />}
             {activeView === 'warehouse' && <WarehousePage companyId={companyIdForViews} />}
             {activeView === 'manufacturing' && isAdmin && <ManufacturingPage companyId={companyIdForViews} />}
             {activeView === 'landing-page-editor' && isSuperAdmin && <LandingPageEditor />}

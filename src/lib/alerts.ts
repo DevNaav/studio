@@ -12,7 +12,7 @@ export type AlertSeverity = 'critical' | 'warning' | 'info';
 /** Where clicking an alert takes the user. */
 export type AlertTarget =
   | { view: 'site'; siteId: string }
-  | { view: 'machines' | 'documents' | 'warranty-tracker' | 'defect-liability' };
+  | { view: 'machines' | 'documents' | 'warranty-tracker' | 'defect-liability' | 'customers' };
 
 export interface AppAlert {
   /** Stable id: the same problem keeps the same id, so "mark as read" sticks. */
@@ -135,7 +135,8 @@ export function computeAlerts(input: AlertInputs): AppAlert[] {
       category: 'Payments',
       title: `${money(u.due)} unpaid by ${u.buyer}`,
       detail: `${plural(u.count, 'sale')} from ${siteName.get(u.siteId)}, oldest ${u.oldest} days ago.`,
-      target: { view: 'site', siteId: u.siteId },
+      target: { view: 'customers' },
+      adminOnly: true,
     });
   });
 

@@ -16,6 +16,7 @@ import { addMonths, format, isValid, parseISO } from 'date-fns';
 import { extractDocumentData } from '@/ai/flows/extract-document-data-flow';
 import { getIdTokenOrThrow } from '@/lib/id-token';
 import { roundMoney, todayISO } from '@/lib/utils';
+import { allocatePayment } from '@/lib/customer-ledger';
 
 
 // Standalone data fetching functions
@@ -514,6 +515,29 @@ export const distributePaymentToSales = async (
   }
 
   await batch.commit();
+};
+
+
+/**
+ * Records a payment from one customer and spreads it over their unpaid sales, oldest first.
+ * Runs in a transaction, so two people logging payments at once can't double-apply.
+ */
+export const recordCustomerPayment = async (saleIds: string[], payment: SalePayment) => {
+  if (saleIds.length === 0) throw new Error('This customer has no sales.');
+  await runTransaction(db, async (tx) => {
+    const snaps = await Promise.all(saleIds.map(id => tx.get(doc(db, 'sales', id))));
+    const sales = snaps.filter(s => s.exists()).map(s => ({ id: s.id, ...s.data() } as Sale));
+    allocatePayment(sales, payment.amount).forEach(({ sale, apply, newPaid, status }) => {
+      tx.update(doc(db, 'sales', sale.id), {
+        amountPaid: newPaid,
+        paymentStatus: status,
+        // Firestore rejects undefined values, so optional notes are only added when filled in.
+        paymentHistory: [...(sale.paymentHistory || []), {
+          amount: apply, date: payment.date, method: payment.method, ...(payment.notes ? { notes: payment.notes } : {}),
+        }],
+      });
+    });
+  });
 };
 
 

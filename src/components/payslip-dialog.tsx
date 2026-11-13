@@ -12,6 +12,7 @@ import { buildPayslip } from '@/lib/payslip';
 import { buildPayslipPdf, payslipFileName } from '@/lib/payslip-pdf';
 import { formatCurrency, todayISO } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { canShareFiles as canShare, loadLogo, sharePdf } from '@/lib/pdf-share';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,25 +27,6 @@ interface PayslipDialogProps {
   attendances: Attendance[];
   workLogs: WorkLog[];
   transactions: LaborTransaction[];
-}
-
-/** Loads the company logo as a data: URL for the PDF; returns null if it can't. */
-async function loadLogo(url?: string): Promise<string | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    if (!/^image\/(png|jpe?g)$/.test(blob.type)) return null; // the PDF library only embeds PNG/JPEG
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -68,7 +50,7 @@ export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName
   );
   const [month, setMonth] = useState(months[0].value);
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
-  const canShareFiles = typeof navigator !== 'undefined' && typeof navigator.canShare === 'function';
+  const canShareFiles = canShare();
 
   useEffect(() => {
     if (open) setMonth(months[0].value);
@@ -83,8 +65,7 @@ export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName
     if (!labor || !payslip) throw new Error('No worker selected.');
     const logoDataUrl = await loadLogo(logoUrl);
     const doc = buildPayslipPdf({ payslip, labor, companyName, siteName, logoDataUrl });
-    const name = payslipFileName(labor, payslip);
-    return { doc, name, file: new File([doc.output('blob')], name, { type: 'application/pdf' }) };
+    return { doc, name: payslipFileName(labor, payslip) };
   };
 
   const handleDownload = async () => {
@@ -103,18 +84,14 @@ export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName
   const handleShare = async () => {
     setBusy('share');
     try {
-      const { doc, name, file } = await makeFile();
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: name, text: `Payslip for ${labor?.name}, ${payslip?.monthLabel}` });
-      } else {
-        doc.save(name); // this browser can't share files: download instead
+      const { doc, name } = await makeFile();
+      const result = await sharePdf(doc, name, `Payslip for ${labor?.name}, ${payslip?.monthLabel}`);
+      if (result === 'downloaded') {
         toast({ title: 'Downloaded instead', description: "This browser can't share files directly. The PDF was downloaded." });
       }
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') {
-        console.error('Payslip share failed', e);
-        toast({ variant: 'destructive', title: 'Could not share the payslip', description: 'Try Download instead.' });
-      }
+    } catch (e) {
+      console.error('Payslip share failed', e);
+      toast({ variant: 'destructive', title: 'Could not share the payslip', description: 'Try Download instead.' });
     } finally {
       setBusy(null);
     }

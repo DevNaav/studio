@@ -172,7 +172,8 @@ export function ActivityLogPage({ companyId, sites }: { companyId: string | null
                       </p>
                     </div>
                     <time className="text-xs text-muted-foreground" dateTime={when?.toISOString()} title={when ? format(when, 'dd MMM yyyy, hh:mm:ss a') : ''}>
-                      {when ? `${formatDistanceToNow(when, { addSuffix: true })} · ${format(when, 'dd MMM, hh:mm a')}` : 'just now'}
+                      {/* The server's clock can be a little ahead of the device's: never show "in 1 minute". */}
+                      {when ? `${when.getTime() > Date.now() - 30_000 ? 'just now' : formatDistanceToNow(when, { addSuffix: true })} · ${format(when, 'dd MMM, hh:mm a')}` : 'just now'}
                     </time>
                   </div>
                   {hasChanges && (

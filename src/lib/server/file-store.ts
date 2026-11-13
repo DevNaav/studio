@@ -12,7 +12,7 @@
  */
 import 'server-only';
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { promises as fs, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { promises as fs, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { del as blobDel, issueSignedToken, presignUrl, type IssuedSignedToken } from '@vercel/blob';
 import { ALLOWED_TYPES, MAX_UPLOAD_BYTES, TYPE_BY_EXT, buildFilePath } from '@/lib/file-types';
@@ -38,11 +38,17 @@ function signingSecret(): string {
     throw new Error('FILE_SIGNING_SECRET is not set. Add it in your Vercel project settings.');
   }
   const secretFile = path.join(UPLOAD_DIR, '.signing-secret');
-  if (existsSync(secretFile)) return readFileSync(secretFile, 'utf8').trim();
   mkdirSync(UPLOAD_DIR, { recursive: true });
-  const secret = randomBytes(32).toString('hex');
-  writeFileSync(secretFile, secret, { mode: 0o600 });
-  return secret;
+  try {
+    // 'wx' creates the file only if it doesn't exist yet (atomic), so two requests
+    // starting at the same moment can't each create a different secret.
+    const secret = randomBytes(32).toString('hex');
+    writeFileSync(secretFile, secret, { mode: 0o600, flag: 'wx' });
+    return secret;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    return readFileSync(secretFile, 'utf8').trim();
+  }
 }
 
 export function signPath(relPath: string): string {

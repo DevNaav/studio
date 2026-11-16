@@ -2,7 +2,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth, initializeAuth, inMemoryPersistence } from "firebase/auth";
-import { getFirestore, initializeFirestore, Firestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, Firestore, persistentLocalCache, persistentMultipleTabManager, terminate, clearIndexedDbPersistence } from "firebase/firestore";
 import { getAnalytics, isSupported } from "firebase/analytics";
 
 // The Firebase web key comes from NEXT_PUBLIC_FIREBASE_API_KEY (set in Vercel).
@@ -40,9 +40,25 @@ const auth = getAuth(app);
 // Skip undefined fields (e.g. blank optional form inputs) instead of rejecting the whole write.
 let db: Firestore;
 try {
-    db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+    db = initializeFirestore(app, {
+        ignoreUndefinedProperties: true,
+        // Keep a copy of loaded records in the browser, so pages show the last-seen numbers at once
+        // and then update live, instead of waiting for every list on every visit.
+        // Wiped on sign-out (clearLocalData) so the next person on a shared computer starts clean.
+        ...(typeof window !== 'undefined' ? { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) } : {}),
+    });
 } catch {
     db = getFirestore(app); // already initialised (hot reload)
+}
+
+/** Delete the browser's copy of company records. Firestore can't be used afterwards, so reload the page next. */
+export async function clearLocalData() {
+    try {
+        await terminate(db);
+        await clearIndexedDbPersistence(db);
+    } catch (e) {
+        console.warn('Could not clear the local data cache', e);
+    }
 }
 
 /**

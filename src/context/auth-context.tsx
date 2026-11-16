@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { auth, db, getProvisioningAuth } from '@/lib/firebase';
+import { auth, db, getProvisioningAuth, clearLocalData } from '@/lib/firebase';
 import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, ConfirmationResult, verifyBeforeUpdateEmail, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc, query, where, addDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { UserProfile, UserRole } from '@/lib/types';
@@ -82,6 +82,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         profileUnsubscribe(); // Unsubscribe from previous profile listener
 
         if (currentUser) {
+            // A different account than last time on this browser: drop the old account's cached records first.
+            try {
+                const last = localStorage.getItem('inventra-cache-uid');
+                if (last && last !== currentUser.uid) {
+                    localStorage.setItem('inventra-cache-uid', currentUser.uid);
+                    await clearLocalData();
+                    window.location.reload();
+                    return;
+                }
+                localStorage.setItem('inventra-cache-uid', currentUser.uid);
+            } catch { /* storage blocked: nothing cached to clear */ }
             setUser(currentUser);
 
             // Always fetch/listen to profile
@@ -261,9 +272,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     setAuthLoading(true);
     await signOut(auth);
-    setUser(null);
-    setUserProfile(null);
-    setAuthLoading(false);
+    // Remove this account's cached records from the browser, then start a fresh page
+    // (Firestore can't be reused after its cache is cleared).
+    await clearLocalData();
+    window.location.assign('/login');
   };
 
   const getAllUsers = async (): Promise<UserProfile[]> => {

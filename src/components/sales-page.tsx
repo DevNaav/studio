@@ -33,6 +33,7 @@ import { DashboardExpenseChart } from './dashboard-expense-chart';
 import { todayISO } from '@/lib/utils';
 import { logActivity } from '@/lib/activity-log';
 import { materialKey, quantityIn, summariseMaterials } from '@/lib/materials';
+import { customerKey } from '@/lib/customer-ledger';
 
 
 const saleMaterialItemSchema = z.object({
@@ -78,7 +79,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isSummaryPaymentOpen, setIsSummaryPaymentOpen] = useState(false);
-  const [summaryPaymentData, setSummaryPaymentData] = useState<{ destinationId: string; destinationName: string; outstandingBalance: number, sourceSiteId: string } | null>(null);
+  const [summaryPaymentData, setSummaryPaymentData] = useState<{ saleIds: string[]; destinationName: string; outstandingBalance: number } | null>(null);
   const [loading, setLoading] = useState(true);
   
   const { toast } = useToast();
@@ -141,13 +142,20 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
   }, [allInventory]);
   
   const salesSummary = useMemo(() => {
-    const summary: { [key: string]: { totalQuantity: number; totalProductionCost: number; totalSalePrice: number; totalAmountPaid: number; totalTransportCost: number; sourceSiteId: string; destinationSiteId: string; } } = {};
+    // One row per buyer (outside buyers by name, own sites by site), matched the same way
+    // as the Customers page. Before, all outside buyers at a site were lumped together.
+    const summary: { [key: string]: { key: string; buyerName: string; saleIds: string[]; totalQuantity: number; totalProductionCost: number; totalSalePrice: number; totalAmountPaid: number; totalTransportCost: number; sourceSiteId: string; destinationSiteId: string; } } = {};
 
     sales.forEach(sale => {
-      const key = `${sale.siteId}-${sale.destinationSiteId || 'external'}`;
+      const key = `${sale.siteId}-${customerKey(sale)}`;
       if (!summary[key]) {
-        summary[key] = { totalQuantity: 0, totalProductionCost: 0, totalSalePrice: 0, totalAmountPaid: 0, totalTransportCost: 0, sourceSiteId: sale.siteId, destinationSiteId: sale.destinationSiteId || 'external' };
+        summary[key] = {
+          key, saleIds: [],
+          buyerName: sale.destinationSiteId ? getSiteName(sale.destinationSiteId) : (sale.buyerInfo?.trim().replace(/\s+/g, ' ') || 'Buyer not named'),
+          totalQuantity: 0, totalProductionCost: 0, totalSalePrice: 0, totalAmountPaid: 0, totalTransportCost: 0, sourceSiteId: sale.siteId, destinationSiteId: sale.destinationSiteId || 'external',
+        };
       }
+      summary[key].saleIds.push(sale.id);
       summary[key].totalQuantity += sale.quantity;
       summary[key].totalProductionCost += sale.productionCost;
       summary[key].totalSalePrice += sale.salePrice;
@@ -160,7 +168,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
       const outstandingBalance = data.totalSalePrice - data.totalAmountPaid;
       return {
         destinationId: data.destinationSiteId,
-        destinationName: getSiteName(data.destinationSiteId),
+        destinationName: data.buyerName,
         sourceSiteName: getSiteName(data.sourceSiteId),
         ...data,
         totalProfit,
@@ -395,10 +403,9 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
 
   const handleOpenSummaryPaymentDialog = (summary: typeof salesSummary[0]) => {
     setSummaryPaymentData({
-      destinationId: summary.destinationId,
+      saleIds: summary.saleIds,
       destinationName: summary.destinationName,
       outstandingBalance: summary.outstandingBalance,
-      sourceSiteId: summary.sourceSiteId
     });
     setIsSummaryPaymentOpen(true);
   };
@@ -486,7 +493,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
                     <TableBody>
                         {salesSummary.length > 0 ? (
                             salesSummary.map(summary => (
-                                <TableRow key={summary.sourceSiteId + summary.destinationId}>
+                                <TableRow key={summary.key}>
                                     <TableCell className="font-medium">{summary.sourceSiteName}</TableCell>
                                     <TableCell className="font-medium">{summary.destinationName}</TableCell>
                                     <TableCell>₹{summary.totalProductionCost.toLocaleString()}</TableCell>
@@ -849,10 +856,9 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
           <LogSummaryPaymentDialog
             open={isSummaryPaymentOpen}
             onOpenChange={setIsSummaryPaymentOpen}
-            destinationId={summaryPaymentData.destinationId}
+            saleIds={summaryPaymentData.saleIds}
             destinationName={summaryPaymentData.destinationName}
             outstandingBalance={summaryPaymentData.outstandingBalance}
-            siteId={summaryPaymentData.sourceSiteId}
           />
       )}
     </div>

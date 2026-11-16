@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { paymentMethods } from '@/lib/types';
-import { distributePaymentToSales } from '@/context/site-context';
+import { recordCustomerPayment } from '@/context/site-context';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { useAuth } from '@/context/auth-context';
@@ -42,19 +42,18 @@ const formSchema = z.object({
 interface LogSummaryPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  destinationId: string;
+  /** The buyer's sales at this site; the payment is applied to them, oldest unpaid first. */
+  saleIds: string[];
   destinationName: string;
   outstandingBalance: number;
-  siteId: string;
 }
 
 export function LogSummaryPaymentDialog({
   open,
   onOpenChange,
-  destinationId,
+  saleIds,
   destinationName,
   outstandingBalance,
-  siteId,
 }: LogSummaryPaymentDialogProps) {
   const { toast } = useToast();
   const { userProfile } = useAuth();
@@ -80,12 +79,14 @@ export function LogSummaryPaymentDialog({
     setIsSubmitting(true);
     
     try {
-      await distributePaymentToSales(userProfile.companyId, siteId, destinationId, {
+      // Same per-customer payment as the Customers page: only this buyer's sales,
+      // in a transaction, and never more than they owe.
+      await recordCustomerPayment(saleIds, {
           amount: values.amount,
           date: values.date,
           method: values.method,
           notes: values.notes,
-      });
+      }, destinationName);
 
       toast({
         title: "Payment Logged",

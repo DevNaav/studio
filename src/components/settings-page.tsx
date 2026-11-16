@@ -23,9 +23,8 @@ interface SettingsDialogProps {
 }
 
 const themes: { name: string; key: ThemePreference; colors: { primary: string; secondary: string; accent: string; background: string; card: string; }; }[] = [
-  { name: 'Synthwave', key: 'dark', colors: { primary: '325 100% 60%', secondary: '260 30% 17%', accent: '190 100% 50%', background: '260 60% 7%', card: '260 45% 11%' } },
-  { name: 'Construction', key: 'construction', colors: { primary: '45 96% 50%', secondary: '20 14.3% 4.1%', accent: '240 5.9% 90%', background: '48 6% 95%', card: '0 0% 100%' } },
-  { name: 'Glacial Cyan', key: 'futuristic', colors: { primary: '195 100% 50%', secondary: '220 20% 14%', accent: '210 100% 60%', background: '220 30% 5%', card: '220 25% 9%' } }
+  { name: 'Light', key: 'construction', colors: { primary: '221 83% 53%', secondary: '220 14% 95%', accent: '221 83% 95%', background: '220 20% 97%', card: '0 0% 100%' } },
+  { name: 'Dark', key: 'futuristic', colors: { primary: '217 91% 62%', secondary: '224 20% 15%', accent: '221 50% 18%', background: '224 30% 7%', card: '224 26% 10%' } },
 ];
 
 
@@ -126,7 +125,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                           <h3 className="text-lg font-semibold">Appearance</h3>
                           <p className="text-sm text-muted-foreground">Choose a theme, or pick System to follow your device&apos;s light/dark mode automatically.</p>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="space-y-2">
                               <Button
                                   variant="outline"

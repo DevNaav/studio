@@ -34,46 +34,24 @@ function Model() {
   return <primitive ref={group} object={scene} scale={2} position={[0, -2, 0]} />;
 }
 
-function HoloPedestal() {
-  const wireRef = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (wireRef.current) {
-      wireRef.current.rotation.y -= 0.005;
-    }
-  });
-
+/** A clean round stage with a soft shadow (replaces the old neon hologram pedestal). */
+function Stage() {
   return (
     <group position={[0, -2, 0]}>
-      {/* 1. Translucent glass pedestal platform */}
+      {/* soft contact shadow */}
+      <mesh position={[0, 0.081, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.75, 48]} />
+        <meshBasicMaterial color="#0f172a" transparent opacity={0.16} depthWrite={false} />
+      </mesh>
+      {/* stage disc */}
       <mesh>
-        <cylinderGeometry args={[1.1, 1.2, 0.15, 32]} />
-        <meshPhysicalMaterial 
-          color="#a855f7" 
-          transparent 
-          opacity={0.35} 
-          roughness={0.1}
-          metalness={0.9}
-          transmission={0.6}
-          thickness={1.5}
-        />
+        <cylinderGeometry args={[1.05, 1.1, 0.16, 64]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.35} metalness={0.05} />
       </mesh>
-      
-      {/* 2. Outer neon rotating wireframe overlay */}
-      <mesh ref={wireRef as any}>
-        <cylinderGeometry args={[1.12, 1.22, 0.16, 16]} />
-        <meshBasicMaterial color="#06b6d4" wireframe transparent opacity={0.4} />
-      </mesh>
-      
-      {/* 3. Subtle laser projection halo cone */}
-      <mesh position={[0, 1.6, 0]}>
-        <cylinderGeometry args={[0.01, 1.1, 3.2, 32, 1, true]} />
-        <meshBasicMaterial 
-          color="#a855f7" 
-          transparent 
-          opacity={0.06} 
-          side={THREE.DoubleSide}
-        />
+      {/* brand-blue rim */}
+      <mesh position={[0, -0.02, 0]}>
+        <torusGeometry args={[1.09, 0.025, 12, 96]} />
+        <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={0.35} roughness={0.4} />
       </mesh>
     </group>
   );
@@ -81,7 +59,7 @@ function HoloPedestal() {
 
 function Sparkles() {
   const pointsRef = useRef<THREE.Points>(null);
-  const count = 25;
+  const count = 14;
   
   const [positions] = React.useState(() => {
     const arr = new Float32Array(count * 3);
@@ -121,10 +99,10 @@ function Sparkles() {
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.06}
-        color="#06b6d4"
+        size={0.045}
+        color="#60a5fa"
         transparent
-        opacity={0.7}
+        opacity={0.55}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
       />
@@ -135,23 +113,14 @@ function Sparkles() {
 export default function CharacterCanvas() {
   return (
     <Canvas camera={{ position: [0, 0, 4.2], fov: 48 }}>
-      {/* Immersive Studio and Projection Lighting Setup */}
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[4, 5, 4]} intensity={1.8} /> {/* Key Light */}
-      <directionalLight position={[-4, 1, -4]} intensity={0.6} color="#67e8f9" /> {/* Cool Fill Light */}
-      <directionalLight position={[0, -4, 4]} intensity={1.0} color="#c084fc" /> {/* Warm Rim Light */}
-      
-      {/* Spotlight radiating from the projector base to illuminate the model upward */}
-      <spotLight 
-        position={[0, -2.5, 0]} 
-        angle={Math.PI / 4} 
-        penumbra={1} 
-        intensity={6} 
-        color="#a855f7" 
-      />
+      {/* Soft studio lighting: warm key, cool fill, gentle rim */}
+      <ambientLight intensity={0.75} />
+      <directionalLight position={[4, 5, 4]} intensity={1.6} color="#fff7ed" />
+      <directionalLight position={[-4, 2, -3]} intensity={0.5} color="#dbeafe" />
+      <directionalLight position={[0, 3, -5]} intensity={0.6} color="#93c5fd" />
 
       <Suspense fallback={null}>
-        <HoloPedestal />
+        <Stage />
         <Sparkles />
         <Model />
       </Suspense>

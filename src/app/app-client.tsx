@@ -120,7 +120,7 @@ function ProjectsMenu({
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <SidebarMenu className="pl-4 pt-1 group-data-[collapsible=icon]:hidden">
+          <SidebarMenu className="ml-[18px] mt-1 border-l border-sidebar-border pl-2.5 group-data-[collapsible=icon]:hidden">
             {projects.map((project) => (
               <SidebarMenuItem key={project.id}>
                 <SidebarMenuButton
@@ -520,10 +520,11 @@ function AppClientContent() {
         <GuidedTour run={runTour} onTourComplete={handleTourComplete} />
         <Sidebar>
             <SidebarHeader>
-                <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
-                    <Logo className="h-9 w-9" />
-                    <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                        <span className="text-xl font-semibold text-sidebar-primary truncate">Inventra</span>
+                <div className="flex items-center gap-3 px-1 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                    <Logo className="h-9 w-9 shrink-0" />
+                    <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
+                        <span className="text-base font-bold tracking-tight text-sidebar-foreground">Inventra</span>
+                        <span className="truncate text-xs text-muted-foreground capitalize">{currentCompany?.name || (isSuperAdmin ? 'Super Admin' : 'Your company')}</span>
                     </div>
                 </div>
             </SidebarHeader>
@@ -706,43 +707,34 @@ function AppClientContent() {
             </SidebarContent>
           <SidebarFooter>
                 {isAdmin && !isSuperAdmin && (
-                    <div id="tour-step-3-add-project" className="px-4 pb-2 group-data-[collapsible=icon]:p-2">
-                        <Card className="bg-sidebar-accent border-sidebar-border text-sidebar-accent-foreground shadow-inner">
-                            <CardHeader className="p-3 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:hidden">
-                                <CardTitle className="text-sm">Let's start!</CardTitle>
-                                <CardDescription className="text-xs text-sidebar-accent-foreground/80">Creating or adding new projects couldn't be easier.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-3 pt-0 group-data-[collapsible=icon]:p-2">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <div className="w-full">
-                                                <Button 
-                                                    onClick={() => setAddSiteOpen(true)}
-                                                    size="sm" 
-                                                    className="w-full bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0"
-                                                    disabled={siteLimitReached}
-                                                >
-                                                    <Plus />
-                                                    <span className="group-data-[collapsible=icon]:hidden">New Project</span>
-                                                </Button>
-                                            </div>
-                                        </TooltipTrigger>
-                                        {siteLimitReached && (
-                                            <TooltipContent side="right" align="center">
-                                                <p>You have reached the {activePlan.maxSites}-site limit of the {activePlan.name} plan.</p>
-                                            </TooltipContent>
-                                        )}
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </CardContent>
-                        </Card>
+                    <div id="tour-step-3-add-project" className="px-2 pb-1 group-data-[collapsible=icon]:px-0">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="w-full">
+                                        <Button
+                                            onClick={() => setAddSiteOpen(true)}
+                                            className="w-full justify-start gap-2 shadow-sm group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+                                            disabled={siteLimitReached}
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            <span className="group-data-[collapsible=icon]:hidden">New site or unit</span>
+                                        </Button>
+                                    </div>
+                                </TooltipTrigger>
+                                {siteLimitReached && (
+                                    <TooltipContent side="right" align="center">
+                                        <p>You have reached the {activePlan.maxSites}-site limit of the {activePlan.name} plan.</p>
+                                    </TooltipContent>
+                                )}
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 )}
                 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start h-auto p-2">
+                        <Button variant="ghost" className="w-full justify-start h-auto rounded-lg border border-transparent p-2 hover:border-sidebar-border hover:bg-sidebar-accent/60">
                             <div className="flex items-center gap-3 w-full">
                                 <Avatar className="h-9 w-9">
                                 <AvatarImage src={userProfile?.photoURL || ''} alt={userProfile?.name || ''} />
@@ -753,13 +745,14 @@ function AppClientContent() {
                                 </AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1 overflow-hidden group-data-[collapsible=icon]:hidden text-left">
-                                    <p className="truncate text-sm font-semibold text-sidebar-primary">{userProfile?.name}</p>
+                                    <p className="truncate text-sm font-semibold text-sidebar-foreground">{userProfile?.name}</p>
                                     <p className="truncate text-xs text-muted-foreground">{userProfile?.email}</p>
                                 </div>
+                                <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
                             </div>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 mb-2 ml-2 bg-sidebar border-sidebar-border text-sidebar-foreground" side="top" align="start">
+                    <DropdownMenuContent className="w-60 mb-2 ml-2" side="top" align="start">
                         <DropdownMenuLabel className="font-normal">
                             <div className="flex flex-col space-y-1">
                                 <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
@@ -817,17 +810,17 @@ function AppClientContent() {
           </SidebarFooter>
         </Sidebar>
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 items-center gap-4 bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/85 px-4 backdrop-blur-md lg:h-16 lg:px-6">
               <SidebarTrigger />
               <div className="flex-1 flex items-center gap-4">
                   {isSuperAdmin && currentCompany ? (
                     <>
-                        <h1 className="text-lg font-semibold md:text-2xl">{currentCompany.name}</h1>
+                        <h1 className="truncate text-base font-semibold md:text-lg">{currentCompany.name}</h1>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        <h2 className="text-lg text-muted-foreground font-medium">{getPageTitle()}</h2>
+                        <h2 className="truncate text-base font-medium text-muted-foreground md:text-lg">{getPageTitle()}</h2>
                     </>
                   ) : (
-                    <h1 className="text-lg font-semibold md:text-2xl">{getPageTitle()}</h1>
+                    <h1 className="truncate text-base font-semibold tracking-tight md:text-xl">{getPageTitle()}</h1>
                   )}
               </div>
 
@@ -890,10 +883,16 @@ function AppClientContent() {
                     </Popover>
                 ) : (
                     currentCompany && (
-                      <Badge variant="outline" className="capitalize">
-                        {subscriptionStatus === 'Trial' ? 'Business' : (planById(currentCompany.planId?.split('-')[0])?.name ?? 'Business')} Plan
-                        {subscriptionStatus === 'Trial' && ' · Trial'}
-                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => isAdmin && handleMenuClick('subscription')}
+                        className="hidden items-center gap-1.5 rounded-full border border-primary/20 bg-accent px-3 py-1 text-xs font-medium text-accent-foreground transition-colors hover:border-primary/40 sm:inline-flex"
+                        title={isAdmin ? 'Manage subscription' : undefined}
+                      >
+                        <Crown className="h-3.5 w-3.5" />
+                        {subscriptionStatus === 'Trial' ? 'Business' : (planById(currentCompany.planId?.split('-')[0])?.name ?? 'Business')}
+                        {subscriptionStatus === 'Trial' ? ' · Trial' : ''}
+                      </button>
                     )
                 )}
               </div>
@@ -902,36 +901,8 @@ function AppClientContent() {
                 <h1 className="text-xl font-semibold">Inventra</h1>
               </div>
             </header>
-            <div className="px-6 py-3 bg-card/50 backdrop-blur-sm">
-                <div className="flex min-w-0 items-center justify-between gap-3">
-                    <div className="flex items-center gap-4">
-                      <CompanyLogoTile name={currentCompany?.name || userProfile?.name || ''} logoUrl={currentCompany?.logoUrl} />
-                      <div className="min-w-0">
-                          <h2 className="truncate text-xl font-bold tracking-tight capitalize">{currentCompany?.name || userProfile?.name}</h2>
-                          <p className="text-sm text-muted-foreground">{isSuperAdmin ? 'Super Administrator' : 'Company Dashboard'}</p>
-                      </div>
-                    </div>
-                    <div className="hidden lg:flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="glowing-pulse h-2 w-2 rounded-full bg-green-400" />
-                        <span>Active Projects: <span className="font-semibold">{sites.filter(s => s.status !== 'Completed').length}</span></span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="glowing-pulse h-2 w-2 rounded-full bg-blue-400" />
-                        <span>Workforce: <span className="font-semibold">{headerLabors.length}</span></span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="glowing-pulse h-2 w-2 rounded-full bg-yellow-400" />
-                        <span>
-                          Tasks Due Today: <span className="font-semibold">{headerStats.dueToday}</span>
-                          {headerStats.overdue > 0 && <span className="ml-1 text-red-400">({headerStats.overdue} overdue)</span>}
-                        </span>
-                      </div>
-                    </div>
-                </div>
-            </div>
-          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden relative">
-            {activeView === 'dashboard' && <DashboardPage sites={constructionSites} manufacturingUnits={manufacturingUnits} companyId={companyIdForViews} setActiveView={setActiveView} showAi={hasPremiumFeatures} />}
+          <main className="relative mx-auto w-full max-w-[1440px] flex-1 overflow-x-hidden p-4 md:p-6 lg:p-8">
+            {activeView === 'dashboard' && <DashboardPage sites={constructionSites} manufacturingUnits={manufacturingUnits} companyId={companyIdForViews} setActiveView={setActiveView} showAi={hasPremiumFeatures} companyName={currentCompany?.name} companyLogoUrl={currentCompany?.logoUrl} tasksDueToday={headerStats.dueToday} tasksOverdue={headerStats.overdue} />}
 
             {activeView === 'sites' && (
             <>

@@ -9,94 +9,111 @@ body {
 
 @layer base {
   :root, .default {
-    --background: 240 6% 96%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --chart-1: 12 76% 61%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 44%;
+    --accent: 221 83% 95%;
+    --accent-foreground: 221 83% 38%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 90%;
+    --input: 220 13% 88%;
+    --ring: 221 83% 53%;
+    --radius: 0.75rem;
+    --chart-1: 221 83% 53%;
     --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 262 52% 58%;
+    --chart-5: 347 77% 55%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 30% 25%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 221 83% 96%;
+    --sidebar-accent-foreground: 221 83% 38%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 221 83% 53%;
   }
 
   .dark {
-    --background: 260 60% 7%; /* Deepest galactic purple-black */
-    --foreground: 250 20% 95%; /* Glowing violet-white */
-    --card: 260 45% 11%; /* Dark purple glassmorphic cards */
-    --card-foreground: 250 20% 95%;
-    --popover: 260 60% 7%;
-    --popover-foreground: 250 20% 95%;
-    --primary: 325 100% 60%; /* Radiant neon hot pink / magenta */
+    --background: 224 30% 7%;
+    --foreground: 214 32% 95%;
+    --card: 224 26% 10%;
+    --card-foreground: 214 32% 95%;
+    --popover: 224 26% 10%;
+    --popover-foreground: 214 32% 95%;
+    --primary: 217 91% 62%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 260 30% 17%; /* Muted deep violet */
-    --secondary-foreground: 250 20% 95%;
-    --muted: 260 30% 17%;
-    --muted-foreground: 250 15% 65%;
-    --accent: 190 100% 50%; /* Glowing neon cyan for accents and hover highlight */
-    --accent-foreground: 260 60% 7%;
-    --destructive: 350 80% 55%;
+    --secondary: 224 20% 15%;
+    --secondary-foreground: 214 32% 95%;
+    --muted: 224 20% 15%;
+    --muted-foreground: 218 14% 64%;
+    --accent: 221 50% 18%;
+    --accent-foreground: 213 94% 80%;
+    --destructive: 0 72% 56%;
     --destructive-foreground: 0 0% 100%;
-    --border: 260 40% 17%; /* Elegant deep-violet borders */
-    --input: 260 40% 17%;
-    --ring: 325 100% 60%;
-
-    /* Sidebar specific with premium deep contrast */
-    --sidebar-background: 260 60% 5%; /* Ultra deep galactic black-purple */
-    --sidebar-foreground: 250 20% 95%;
-    --sidebar-primary: 325 100% 60%;
+    --border: 224 18% 18%;
+    --input: 224 18% 20%;
+    --ring: 217 91% 62%;
+    --radius: 0.75rem;
+    --chart-1: 217 91% 62%;
+    --chart-2: 172 66% 45%;
+    --chart-3: 38 92% 55%;
+    --chart-4: 262 70% 70%;
+    --chart-5: 347 77% 62%;
+    --sidebar-background: 225 30% 8%;
+    --sidebar-foreground: 218 20% 78%;
+    --sidebar-primary: 217 91% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 260 45% 11%;
-    --sidebar-accent-foreground: 250 20% 95%;
-    --sidebar-border: 260 40% 14%;
-    --sidebar-ring: 325 100% 60%;
+    --sidebar-accent: 221 40% 16%;
+    --sidebar-accent-foreground: 213 94% 85%;
+    --sidebar-border: 224 18% 15%;
+    --sidebar-ring: 217 91% 62%;
   }
 
   .futuristic {
-    --background: 220 30% 5%; /* Deep Slate-Black */
-    --foreground: 215 20% 95%; /* Glacial White */
-    --card: 220 25% 9%; /* Ice Carbon glass card background */
-    --card-foreground: 215 20% 95%;
-    --popover: 220 30% 4%;
-    --popover-foreground: 215 20% 95%;
-    --primary: 195 100% 50%; /* Radiant Neon Glacial Cyan */
-    --primary-foreground: 220 30% 5%;
-    --secondary: 220 20% 14%; /* Muted Slate */
-    --secondary-foreground: 215 20% 95%;
-    --muted: 220 20% 14%;
-    --muted-foreground: 215 15% 65%;
-    --accent: 210 100% 60%; /* Glowing Electric Blue Accent */
-    --accent-foreground: 220 30% 5%;
-    --destructive: 350 80% 55%;
+    --background: 224 30% 7%;
+    --foreground: 214 32% 95%;
+    --card: 224 26% 10%;
+    --card-foreground: 214 32% 95%;
+    --popover: 224 26% 10%;
+    --popover-foreground: 214 32% 95%;
+    --primary: 217 91% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 224 20% 15%;
+    --secondary-foreground: 214 32% 95%;
+    --muted: 224 20% 15%;
+    --muted-foreground: 218 14% 64%;
+    --accent: 221 50% 18%;
+    --accent-foreground: 213 94% 80%;
+    --destructive: 0 72% 56%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 20% 14%; /* Clean titanium borders */
-    --input: 220 20% 14%;
-    --ring: 195 100% 50%;
-
-    /* Sidebar specific with premium ice contrast */
-    --sidebar-background: 220 30% 4%;
-    --sidebar-foreground: 215 20% 95%;
-    --sidebar-primary: 195 100% 50%;
-    --sidebar-primary-foreground: 220 30% 5%;
-    --sidebar-accent: 220 25% 9%;
-    --sidebar-accent-foreground: 215 20% 95%;
-    --sidebar-border: 220 20% 12%;
-    --sidebar-ring: 195 100% 50%;
+    --border: 224 18% 18%;
+    --input: 224 18% 20%;
+    --ring: 217 91% 62%;
+    --radius: 0.75rem;
+    --chart-1: 217 91% 62%;
+    --chart-2: 172 66% 45%;
+    --chart-3: 38 92% 55%;
+    --chart-4: 262 70% 70%;
+    --chart-5: 347 77% 62%;
+    --sidebar-background: 225 30% 8%;
+    --sidebar-foreground: 218 20% 78%;
+    --sidebar-primary: 217 91% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 221 40% 16%;
+    --sidebar-accent-foreground: 213 94% 85%;
+    --sidebar-border: 224 18% 15%;
+    --sidebar-ring: 217 91% 62%;
   }
 }
 
@@ -107,34 +124,40 @@ body {
 }
 
 .construction {
-    --background: 48 6% 95%;
-    --foreground: 20 14.3% 4.1%;
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 20 14.3% 4.1%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 20 14.3% 4.1%;
-    --primary: 45 96% 50%;
-    --primary-foreground: 26 83.3% 14.1%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 20 14.3% 4.1%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 20 14.3% 4.1%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 45 96% 50%;
-    --sidebar-background: 20 14.3% 4.1%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 45 96% 50%;
-    --sidebar-primary-foreground: 26 83.3% 14.1%;
-    --sidebar-accent: 20 14.3% 10.1%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 20 14.3% 15.1%;
-    --sidebar-ring: 45 96% 50%;
-}
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 44%;
+    --accent: 221 83% 95%;
+    --accent-foreground: 221 83% 38%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 90%;
+    --input: 220 13% 88%;
+    --ring: 221 83% 53%;
+    --radius: 0.75rem;
+    --chart-1: 221 83% 53%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 262 52% 58%;
+    --chart-5: 347 77% 55%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 30% 25%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 221 83% 96%;
+    --sidebar-accent-foreground: 221 83% 38%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 221 83% 53%;
+  }
 
 .construction .text-muted-foreground, .construction button > div > p.text-sidebar-foreground\/80 {
     color: hsl(var(--muted-foreground)) !important;
@@ -256,66 +279,24 @@ html {
     mask-image: radial-gradient(ellipse at center, hsl(var(--background)), transparent 70%);
 }
 
-.futuristic {
-    .tw-neon {
-        position: relative;
-        border-color: transparent;
-        background: hsl(var(--card) / 0.7);
-        backdrop-filter: blur(12px);
-        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .tw-neon:hover {
-        transform: translateY(-6px);
-        background: hsl(var(--card) / 0.85);
-        box-shadow: 0 20px 40px -10px hsl(var(--primary) / 0.3), 0 0 30px -5px hsl(var(--accent) / 0.2);
-    }
-
-    .tw-neon::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: var(--radius);
-        padding: 1px; /* The "border" width */
-        background: conic-gradient(from 180deg at 50% 50%, hsl(var(--accent) / 0.3), hsl(var(--primary) / 0.4), hsl(var(--accent) / 0.3));
-        -webkit-mask: 
-            linear-gradient(#fff 0 0) content-box, 
-            linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-                mask-composite: exclude;
-        animation: glow-subtle 3s ease-in-out infinite;
-        z-index: -1;
-        transition: opacity 0.4s ease;
-        opacity: 0.85;
-    }
-
-    .tw-neon:hover::before {
-        opacity: 1;
-        background: conic-gradient(from 180deg at 50% 50%, hsl(var(--accent) / 0.6), hsl(var(--primary) / 0.8), hsl(var(--accent) / 0.6));
-    }
-
-    .sidebar-menu-button:hover, .sidebar-menu-button[data-active="true"] {
-        box-shadow: 0 0 15px hsl(var(--primary) / 0.5);
-    }
-    
-    .sidebar-menu-button[data-active="true"]::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 25%;
-        bottom: 25%;
-        width: 3px;
-        background-color: hsl(var(--accent));
-        border-radius: 3px;
-    }
-
-    .glowing-pulse {
-        animation: pulse-glow 2s infinite ease-in-out;
-    }
-
-    .separator {
-      background-color: transparent;
-    }
+/* Cards: soft shadow, gentle lift on hover (replaces the old neon glow). */
+.tw-neon {
+    position: relative;
+    box-shadow: 0 1px 2px hsl(222 47% 11% / 0.04), 0 1px 3px hsl(222 47% 11% / 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.tw-neon:hover {
+    border-color: hsl(var(--primary) / 0.35);
+    box-shadow: 0 8px 24px -8px hsl(222 47% 11% / 0.14);
+}
+.futuristic .tw-neon, .dark .tw-neon {
+    box-shadow: 0 1px 2px hsl(0 0% 0% / 0.3);
+}
+.futuristic .tw-neon:hover, .dark .tw-neon:hover {
+    box-shadow: 0 10px 30px -10px hsl(0 0% 0% / 0.6);
+}
+.glowing-pulse {
+    animation: pulse-glow 2.4s infinite ease-in-out;
 }
 
 @keyframes glow-subtle {
@@ -324,15 +305,10 @@ html {
 }
 
 @keyframes pulse-glow {
-    0%, 100% {
-        transform: scale(1);
-        box-shadow: 0 0 5px hsl(var(--primary) / 0.5);
-    }
-    50% {
-        transform: scale(1.1);
-        box-shadow: 0 0 15px hsl(var(--primary) / 0.8);
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
 }
+
 
 .anim-hidden {
   opacity: 0;

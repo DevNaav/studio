@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Monitor, Moon, Palette, Sun } from 'lucide-react';
+import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -9,9 +9,8 @@ import { useThemePreference, LIGHT_THEME, DARK_THEME, type ThemePreference } fro
 
 const OPTIONS: { value: ThemePreference; label: string; hint: string; icon: React.ElementType }[] = [
   { value: 'system', label: 'System', hint: 'Match my device', icon: Monitor },
-  { value: LIGHT_THEME, label: 'Light', hint: 'Construction', icon: Sun },
-  { value: DARK_THEME, label: 'Dark', hint: 'Glacial Cyan', icon: Moon },
-  { value: 'dark', label: 'Synthwave', hint: 'Dark, neon pink', icon: Palette },
+  { value: LIGHT_THEME, label: 'Light', hint: 'Clean and bright', icon: Sun },
+  { value: DARK_THEME, label: 'Dark', hint: 'Easy on the eyes', icon: Moon },
 ];
 
 /** Quick light/dark switch for the dashboard header. */

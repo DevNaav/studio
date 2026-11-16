@@ -18,6 +18,7 @@ import { getIdTokenOrThrow } from '@/lib/id-token';
 import { roundMoney, todayISO } from '@/lib/utils';
 import { allocatePayment } from '@/lib/customer-ledger';
 import { activity, logActivity } from '@/lib/activity-log';
+import { makeInvoiceNumber } from '@/lib/invoice-pdf';
 
 
 // Standalone data fetching functions
@@ -486,9 +487,11 @@ export const recordPaymentAndUpdateSubscription = async (
     batch.update(companyRef, subscriptionData);
 
     const paymentRef = doc(collection(db, 'payments'));
-    batch.set(paymentRef, { ...paymentData, companyId, isDeleted: false });
+    const invoiceNumber = makeInvoiceNumber(paymentRef.id, new Date(paymentData.paymentDate));
+    batch.set(paymentRef, { ...paymentData, invoiceNumber, companyId, isDeleted: false });
 
     await batch.commit();
+    return { paymentId: paymentRef.id, invoiceNumber };
 };
 
 

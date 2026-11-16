@@ -34,8 +34,8 @@ const paymentSchema = z.object({
 const plans = PLANS.map(p => ({
   id: p.id,
   name: `${p.name} Plan`,
-  priceMonthly: `${inr(p.monthly)}/month + GST`,
-  priceAnnually: `${inr(p.annually)}/year + GST`,
+  priceMonthly: `${inr(p.monthly)}/month`,
+  priceAnnually: `${inr(p.annually)}/year`,
   features: p.features,
 }));
 

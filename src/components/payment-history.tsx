@@ -57,34 +57,17 @@ export function PaymentHistory({ companyId }: PaymentHistoryProps) {
   }, [companyId]);
 
   const handleDownloadInvoice = async (payment: Payment) => {
-    const { default: jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
-    const planDetails = { name: planLabel(payment.planId) };
-
-    doc.setFontSize(22);
-    doc.text('Invoice', 105, 20, { align: 'center' });
-
-    doc.setFontSize(12);
-    doc.text(`Invoice for: ${company?.name || 'Your Company'}`, 14, 40);
-    doc.text(`Payment Date: ${format(new Date(payment.paymentDate), 'PPP')}`, 14, 46);
-    doc.text(`Invoice ID: ${payment.id}`, 14, 52);
-
-    autoTable(doc, {
-      startY: 65,
-      head: [['Description', 'Amount']],
-      body: [
-        [`Subscription - ${planDetails.name}`, formatCurrency(payment.amount)],
-      ],
-      foot: [['Total Paid', formatCurrency(payment.amount)]],
-      theme: 'striped',
-      footStyles: { fontStyle: 'bold' },
+    const { buildInvoicePdf, makeInvoiceNumber } = await import('@/lib/invoice-pdf');
+    const invoiceNumber = payment.invoiceNumber || makeInvoiceNumber(payment.id, new Date(payment.paymentDate));
+    const doc = buildInvoicePdf({
+      invoiceNumber,
+      paymentDate: payment.paymentDate,
+      planId: payment.planId,
+      amount: payment.amount,
+      companyName: company?.name || 'Your company',
     });
-
-    doc.setFontSize(10);
-    doc.text('Thank you for your business!', 14, (doc as any).lastAutoTable.finalY + 20);
-
-    doc.save(`invoice-${payment.id}.pdf`);
-    toast({ title: 'Invoice Downloaded' });
+    doc.save(`${invoiceNumber}.pdf`);
+    toast({ title: 'Invoice downloaded' });
   };
 
   return (
@@ -114,7 +97,7 @@ export function PaymentHistory({ companyId }: PaymentHistoryProps) {
                 payments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell>{format(new Date(payment.paymentDate), 'PPP')}</TableCell>
-                    <TableCell className="capitalize">{payment.planId.replace('-', ' ')}</TableCell>
+                    <TableCell>{planLabel(payment.planId)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" onClick={() => handleDownloadInvoice(payment)}>

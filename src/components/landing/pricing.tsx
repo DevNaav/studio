@@ -54,7 +54,7 @@ export function Pricing() {
             <p className="mt-1 text-sm text-ink/55">{plan.blurb}</p>
             <p className="mt-6 flex items-baseline gap-1">
               <span className="text-4xl font-extrabold tracking-tight">{inr(annual ? plan.annually : plan.monthly)}</span>
-              <span className="text-sm text-ink/50">/{annual ? 'year' : 'month'} + GST</span>
+              <span className="text-sm text-ink/50">/{annual ? 'year' : 'month'}</span>
             </p>
             {annual && <p className="mt-1 text-xs text-ink/40">≈ {inr(Math.round(plan.annually / 12))} per month, 2 months free</p>}
             <ul className="mt-6 flex-1 space-y-3 text-sm">
@@ -79,7 +79,7 @@ export function Pricing() {
         ))}
       </div>
       <p className="mt-6 text-center text-xs text-ink/50">
-        Every new company gets a {TRIAL_DAYS}-day free trial with everything in Business. No card needed. Prices exclude 18% GST.
+        Every new company gets a {TRIAL_DAYS}-day free trial with everything in Business. No card needed.
       </p>
       <p className="mt-2 text-center text-sm text-ink/70">
         More than 50 users or need something custom?{' '}

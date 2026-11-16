@@ -15,7 +15,9 @@ import { useToast } from '@/hooks/use-toast';
 import { recordPaymentAndUpdateSubscription } from '@/context/site-context';
 import { addYears, addMonths, format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
-import { planById, priceFor, withGst } from '@/lib/plans';
+import { planById, priceFor } from '@/lib/plans';
+import { useAuth } from '@/context/auth-context';
+import { getIdTokenOrThrow } from '@/lib/id-token';
 
 const paymentSchema = z.object({
   cardName: z.string().min(2, 'Name on card is required.'),
@@ -35,10 +37,11 @@ interface PaymentPageProps {
 export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }: PaymentPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   const plan = planById(planId)!;
   const selectedPlan = { name: `${plan.name} Plan` };
-  // Prices come from the shared list and exclude GST; the amount charged includes 18% GST.
-  const { base: basePrice, gst, total: price } = withGst(priceFor(plan, billingCycle));
+  // The price comes from the shared list (src/lib/plans.ts); that is exactly what's charged.
+  const price = priceFor(plan, billingCycle);
   const fullPlanId: FullPlanId = `${planId}-${billingCycle}`;
 
   const form = useForm<z.infer<typeof paymentSchema>>({
@@ -65,7 +68,7 @@ export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }:
       const base = company.subscriptionStatus === 'Active' && currentEnd && currentEnd > now ? currentEnd : now;
       const newEndDate = billingCycle === 'annually' ? addYears(base, 1) : addMonths(base, 1);
       
-      await recordPaymentAndUpdateSubscription(
+      const { paymentId, invoiceNumber } = await recordPaymentAndUpdateSubscription(
         company.id,
         {
             planId: fullPlanId,
@@ -76,15 +79,40 @@ export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }:
         {
             planId: fullPlanId,
             amount: price,
-            baseAmount: basePrice,
-            gstAmount: gst,
             paymentDate: now.toISOString(),
         }
       );
 
+      // The bill: download the invoice PDF right away (also in Payment History later).
+      try {
+        const { buildInvoicePdf } = await import('@/lib/invoice-pdf');
+        buildInvoicePdf({
+          invoiceNumber, paymentDate: now.toISOString(), planId: fullPlanId, amount: price,
+          companyName: company.name, buyerName: user?.displayName, buyerEmail: user?.email,
+          periodEnd: newEndDate.toISOString(),
+        }).save(`${invoiceNumber}.pdf`);
+      } catch (e) {
+        console.error('Invoice download failed', e);
+      }
+
+      // Confirmation email with the invoice attached (sent to the buyer's own address).
+      let emailNote = 'Your invoice has been downloaded.';
+      try {
+        const res = await fetch('/api/billing/confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await getIdTokenOrThrow()}` },
+          body: JSON.stringify({ paymentId }),
+        });
+        const result = await res.json().catch(() => ({}));
+        if (result.sent) emailNote = `A confirmation email with your invoice was sent to ${result.to}.`;
+      } catch (e) {
+        console.error('Confirmation email failed', e);
+      }
+
       toast({
         title: 'Payment Successful!',
-        description: `Your subscription for the ${selectedPlan.name} is now active.`,
+        description: `Your ${selectedPlan.name} is now active. ${emailNote}`,
+        duration: 8000,
       });
       onPaymentSuccess();
     } catch (error) {
@@ -104,7 +132,7 @@ export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }:
       <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><CreditCard /> Complete Your Purchase</CardTitle>
-          <CardDescription>You are purchasing the {selectedPlan.name} ({billingCycle}) for {formatCurrency(basePrice)}/{billingCycle === 'annually' ? 'year' : 'month'} + 18% GST ({formatCurrency(gst)}) = <strong>{formatCurrency(price)}</strong>.</CardDescription>
+          <CardDescription>You are purchasing the {selectedPlan.name} ({billingCycle}) for <strong>{formatCurrency(price)}</strong>/{billingCycle === 'annually' ? 'year' : 'month'}.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

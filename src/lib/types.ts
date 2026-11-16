@@ -65,9 +65,8 @@ export interface Payment {
   id: string;
   companyId: string;
   planId: FullPlanId;
-  amount: number;        // total charged, including GST
-  baseAmount?: number;   // price before GST
-  gstAmount?: number;
+  amount: number;        // amount charged
+  invoiceNumber?: string;
   paymentDate: string;
   isDeleted?: boolean;
 }

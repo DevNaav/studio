@@ -166,7 +166,7 @@ export function SubscriptionsPage({ allCompanies }: SubscriptionsPageProps) {
               <CardTitle className="flex items-center gap-2">
                 <Crown /> Subscription Plan Management
               </CardTitle>
-              <CardDescription>The plans and prices customers see (excluding GST). To change them, edit src/lib/plans.ts and redeploy.</CardDescription>
+              <CardDescription>The plans and prices customers see. To change them, edit src/lib/plans.ts and redeploy.</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">

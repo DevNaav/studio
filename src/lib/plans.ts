@@ -7,7 +7,6 @@
  */
 import type { BillingCycle, Company, PlanId } from '@/lib/types';
 
-export const GST_RATE = 0.18;
 export const TRIAL_DAYS = 30;
 /** Larger teams talk to us (Enterprise). */
 export const ENTERPRISE_CONTACT = '/contact';
@@ -16,8 +15,8 @@ export interface PlanDefinition {
   id: PlanId;
   name: string;
   blurb: string;
-  monthly: number;   // Rs. per month, before GST
-  annually: number;  // Rs. per year, before GST (two months free)
+  monthly: number;   // Rs. per month (the amount charged)
+  annually: number;  // Rs. per year (two months free)
   maxSites: number | null;  // active sites + manufacturing units; null = unlimited
   maxUsers: number;          // team members including the admin
   premiumFeatures: boolean;  // AI Assistant, AI document reading, Activity log
@@ -66,11 +65,6 @@ export const planById = (id: PlanId | string | undefined | null): PlanDefinition
   PLANS.find(p => p.id === id);
 
 export const priceFor = (plan: PlanDefinition, cycle: BillingCycle) => (cycle === 'annually' ? plan.annually : plan.monthly);
-
-export function withGst(amount: number) {
-  const gst = Math.round(amount * GST_RATE * 100) / 100;
-  return { base: amount, gst, total: Math.round((amount + gst) * 100) / 100 };
-}
 
 export const inr = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 

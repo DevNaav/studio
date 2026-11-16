@@ -152,7 +152,7 @@ export function SubscriptionStatusPage({ company, onSelectPlan }: SubscriptionSt
                   <CardTitle>{plan.name}</CardTitle>
                   <CardDescription className="flex flex-wrap items-baseline gap-x-1">
                     <span className="text-3xl font-bold text-foreground">{formatCurrency(priceFor(plan, billingCycle))}</span>
-                    <span className="text-muted-foreground">/{billingCycle === 'annually' ? 'year' : 'month'} + GST</span>
+                    <span className="text-muted-foreground">/{billingCycle === 'annually' ? 'year' : 'month'}</span>
                   </CardDescription>
                   <p className="text-sm text-muted-foreground">{plan.blurb}</p>
                 </CardHeader>
@@ -183,7 +183,7 @@ export function SubscriptionStatusPage({ company, onSelectPlan }: SubscriptionSt
             ))}
         </div>
         <p className="text-center text-sm text-muted-foreground">
-            Prices exclude 18% GST. Need more than 50 users? <a href="/contact" className="font-medium underline underline-offset-4">Contact us about Enterprise</a>.
+            Need more than 50 users? <a href="/contact" className="font-medium underline underline-offset-4">Contact us about Enterprise</a>.
         </p>
         <PaymentHistory companyId={company.id} />
     </div>

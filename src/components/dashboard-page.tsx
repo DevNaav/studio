@@ -299,7 +299,7 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <KpiCard tone="blue" title="Spent on sites" value={shortRs(totalSpent)} icon={IndianRupee} description="All active sites, to date" />
         <KpiCard tone="amber" title="Owed to workers" value={shortRs(workersOwed)} icon={Wallet} description="Wages earned, not yet paid" onClick={() => setActiveView('labor')} />
-        <KpiCard tone="violet" title="Workforce" value={String(allLabor.length)} icon={Users} description={`${sites.length} sites · ${manufacturingUnits.length} units`} onClick={() => setActiveView('labor')} />
+        <KpiCard tone="violet" title="Workforce" value={String(allLabor.length)} icon={Users} description={`${sites.length} ${sites.length === 1 ? 'site' : 'sites'} · ${manufacturingUnits.length} ${manufacturingUnits.length === 1 ? 'unit' : 'units'}`} onClick={() => setActiveView('labor')} />
         <KpiCard tone="emerald" title="Stock value" value={shortRs(kpiData.inventoryValue)} icon={Warehouse} description="Current materials in stock" onClick={() => setActiveView('warehouse')} />
       </div>
 
@@ -353,7 +353,7 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
                         ) : (
                           <p className="text-xs text-muted-foreground">No budget set</p>
                         )}
-                        <p className="flex items-center text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">Open site <ChevronRight className="h-3.5 w-3.5" /></p>
+                        <p className="flex items-center text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">Open site <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></p>
                       </CardContent>
                     </Card>
                   );

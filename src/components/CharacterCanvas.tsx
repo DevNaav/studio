@@ -112,7 +112,7 @@ function Sparkles() {
 
 export default function CharacterCanvas() {
   return (
-    <Canvas camera={{ position: [0, 0, 4.2], fov: 48 }}>
+    <Canvas camera={{ position: [0, -0.15, 4.75], fov: 48 }}>
       {/* Soft studio lighting: warm key, cool fill, gentle rim */}
       <ambientLight intensity={0.75} />
       <directionalLight position={[4, 5, 4]} intensity={1.6} color="#fff7ed" />

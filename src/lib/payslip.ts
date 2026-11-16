@@ -10,7 +10,7 @@
  * Pure functions only, so they can be tested without a database.
  */
 import { addDays, differenceInCalendarDays, endOfMonth, format, getDaysInMonth, isValid, parseISO, startOfMonth } from 'date-fns';
-import type { Attendance, Labor, LaborTransaction, WorkLog } from '@/lib/types';
+import type { Attendance, FoodCostMode, Labor, LaborTransaction, WorkLog } from '@/lib/types';
 import { roundMoney } from '@/lib/utils';
 
 export interface PayslipLine {
@@ -32,10 +32,12 @@ export interface Payslip {
   attendance?: { present: number; halfDays: number; absent: number; unmarked: number; payableDays: number };
   workLines: PayslipLine[];     // Contract work logged in the month
   paymentLines: PayslipLine[];  // payments made in the month
+  foodLines: PayslipLine[];     // food given in the month (only when food is cut from wages)
+  food: number;                 // total of foodLines
   broughtForward: number;       // balance owed at the start of the month (negative = advance)
   earned: number;
   paid: number;
-  closingBalance: number;       // broughtForward + earned - paid
+  closingBalance: number;       // broughtForward + earned - paid - food
 }
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
@@ -96,6 +98,8 @@ export function buildPayslip(params: {
   attendances: Attendance[];
   workLogs: WorkLog[];
   transactions: LaborTransaction[];
+  /** 'deduct' = food given is taken off the worker's wages (company setting). */
+  foodMode?: FoodCostMode;
 }): Payslip {
   const { labor, today } = params;
   const monthStart = startOfMonth(parseISO(`${params.month}-01`));
@@ -113,7 +117,17 @@ export function buildPayslip(params: {
 
   const earnedBefore = earnedUpTo(labor, dayBefore, today, attendanceByDate, myLogs);
   const earnedToEnd = earnedUpTo(labor, to, today, attendanceByDate, myLogs);
-  const paidBefore = payments.filter(p => p.date < from).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  // Food counts against wages only when the company cuts it from wages.
+  const foodTx = params.foodMode === 'deduct'
+    ? params.transactions.filter(t => !t.isDeleted && t.laborId === labor.id && t.type === 'Food')
+    : [];
+  const paidBefore = payments.filter(p => p.date < from).reduce((s, p) => s + (Number(p.amount) || 0), 0)
+    + foodTx.filter(t => t.date < from).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const foodLines = foodTx
+    .filter(t => t.date >= from && t.date <= monthEnd)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(t => ({ date: t.date, label: 'Food', amount: Number(t.amount) || 0 }));
+  const food = roundMoney(foodLines.reduce((s, f) => s + f.amount, 0));
   const paymentLines = payments
     .filter(p => p.date >= from && p.date <= monthEnd)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -160,9 +174,11 @@ export function buildPayslip(params: {
     attendance,
     workLines,
     paymentLines,
+    foodLines,
+    food,
     broughtForward,
     earned,
     paid: roundMoney(paid),
-    closingBalance: roundMoney(broughtForward + earned - paid),
+    closingBalance: roundMoney(broughtForward + earned - paid - food),
   };
 }

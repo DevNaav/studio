@@ -4,7 +4,7 @@
  */
 import { eachDayOfInterval, format as formatDate, isAfter as isAfterDate } from 'date-fns';
 import type {
-  Expense, ExpenseCategory, FuelLog, InventoryItem, Machine, MachineAttendance, MaintenanceLog, RentedMaterial,
+  Expense, ExpenseCategory, FoodCostMode, FuelLog, LaborCostBasis, InventoryItem, Machine, MachineAttendance, MaintenanceLog, RentedMaterial,
   RentedMaterialAttendance, Sale, Tool,
 } from '@/lib/types';
 
@@ -43,8 +43,16 @@ export function saleProfit(sale: Pick<Sale, 'salePrice' | 'productionCost' | 'tr
 
 export interface SiteSpendInput {
   siteId: string;
-  /** Wages paid to the site's workers (Payment transactions). */
+  /** Cash paid to the site's workers (Payment transactions). */
   laborPaid: number;
+  /** Wages the site's workers have earned so far (needed when laborBasis is 'earned'). */
+  laborEarned?: number;
+  /** Food given to the site's workers (Food transactions). */
+  foodGiven?: number;
+  /** Company setting: count labour as wages earned (default) or wages paid. */
+  laborBasis?: LaborCostBasis;
+  /** Company setting: food is a site expense ('company', default) or cut from wages ('deduct'). */
+  foodMode?: FoodCostMode;
   expenses: Expense[];                 // this site's expense records
   materials: InventoryItem[];          // this site's inventory
   machines: Machine[];                 // all company machines (filtered to this site here)
@@ -62,7 +70,14 @@ export function computeSiteSpend(input: SiteSpendInput): { breakdown: { name: st
   const map = new Map<string, number>();
   const add = (k: string, v: number) => { if (v > 0) map.set(k, (map.get(k) || 0) + v); };
 
-  add('Labor', input.laborPaid);
+  // Labour: wages earned (true cost) or cash paid, as the company chose. When food is cut from
+  // wages it is part of what workers received, so it counts with their pay; otherwise the
+  // company pays for it and it is a separate Food cost.
+  const food = input.foodGiven ?? 0;
+  const deduct = input.foodMode === 'deduct';
+  const basis = input.laborBasis ?? (input.laborEarned === undefined ? 'paid' : 'earned');
+  add('Labor', basis === 'earned' ? (input.laborEarned ?? 0) : input.laborPaid + (deduct ? food : 0));
+  if (!deduct) add('Food', food);
   add('Materials', input.materials
     .filter(i => !i.isDeleted && i.type === 'Material' && i.status === 'Bought')
     .reduce((s, i) => s + i.quantity * (i.pricePerUnit || 0), 0));

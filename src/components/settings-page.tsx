@@ -16,6 +16,7 @@ import { updateCompanyLogo } from '@/context/site-context';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
 import { AnimationToggleSection } from './animation-toggle-section';
+import { CompanyAccountingSettings } from './company-accounting-settings';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -132,6 +133,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                                 </Button>
                             </div>
                         </div>
+                        <Separator />
+                        <CompanyAccountingSettings />
                      </>
                   )}
 

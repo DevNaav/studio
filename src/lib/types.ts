@@ -59,7 +59,14 @@ export interface Company {
   logoUrl?: string;
   logoPath?: string;
   isLocked?: boolean;
+  /** Food given to workers: cut from their wages ('deduct') or paid by the company as a site expense ('company', default). */
+  foodCostMode?: FoodCostMode;
+  /** Which labour figure site totals and budgets use: wages earned (default) or wages paid. Both are always shown. */
+  laborCostBasis?: LaborCostBasis;
 }
+
+export type FoodCostMode = 'deduct' | 'company';
+export type LaborCostBasis = 'earned' | 'paid';
 
 export interface Payment {
   id: string;

@@ -6,7 +6,8 @@ import { Site, InventoryItem, Expense, MaintenanceLog, Labor, Machine, LaborTran
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { IndianRupee, Wrench, HardHat, Construction, Users, Download, Fuel, Siren } from 'lucide-react';
 import { Button } from '../ui/button';
-import { getSubCollection, onGlobalCollectionSnapshot, onSubCollectionSnapshot } from '@/context/site-context';
+import { getSubCollection, onGlobalCollectionSnapshot, onSubCollectionSnapshot, useSite } from '@/context/site-context';
+import { siteLaborTotals, type WorkerMoney } from '@/lib/wages';
 import jsPDF from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { Separator } from '../ui/separator';
@@ -83,12 +84,21 @@ export function SummaryTab({ site, totalLaborWages, wageSummary }: SummaryTabPro
   const machineIdsOnSite = useMemo(() => siteMachines.map(m => m.id), [siteMachines]);
 
   // Shared with budget alerts (src/lib/costs.ts), so both always show the same total.
+  const { allCompanies } = useSite();
+  const company = allCompanies.find(c => c.id === site.companyId);
+  const laborBasis = company?.laborCostBasis ?? 'earned';
+  const labor = useMemo(() => siteLaborTotals(wageSummary as WorkerMoney[]), [wageSummary]);
+
   const siteExpenseBreakdown = useMemo(() => computeSiteSpend({
     siteId: site.id,
-    laborPaid: wageSummary.reduce((acc, s) => acc + s.totalPaid, 0),
+    laborPaid: labor.paid,
+    laborEarned: labor.earned,
+    foodGiven: labor.food,
+    laborBasis,
+    foodMode: company?.foodCostMode,
     expenses, materials, machines: allMachines, maintenanceLogs: allMaintenanceLogs, fuelLogs: allFuelLogs,
     rentedMaterials, rentedMaterialAttendances, machineAttendances, tools, today,
-  }).breakdown, [expenses, wageSummary, allMachines, allMaintenanceLogs, allFuelLogs, materials, rentedMaterials, rentedMaterialAttendances, machineAttendances, site.id, today, tools]);
+  }).breakdown, [expenses, labor, laborBasis, company?.foodCostMode, allMachines, allMaintenanceLogs, allFuelLogs, materials, rentedMaterials, rentedMaterialAttendances, machineAttendances, site.id, today, tools]);
 
   const totalSiteExpenses = useMemo(() => {
     return siteExpenseBreakdown.reduce((acc, item) => acc + item.value, 0);
@@ -135,6 +145,10 @@ export function SummaryTab({ site, totalLaborWages, wageSummary }: SummaryTabPro
         ['Site Status', site.status],
         ['Project Budget', formatCurrency(site.budget)],
         ['Total Site Expenses', formatCurrency(totalSiteExpenses)],
+        [`  Labour counted as`, laborBasis === 'earned' ? 'Wages earned' : 'Wages paid'],
+        ['Wages earned', formatCurrency(labor.earned)],
+        ['Wages paid', formatCurrency(labor.paid)],
+        ['Still owed to workers', formatCurrency(labor.owed)],
       ],
       startY: yPos,
       theme: 'plain'
@@ -363,7 +377,13 @@ export function SummaryTab({ site, totalLaborWages, wageSummary }: SummaryTabPro
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(totalSiteExpenses)}</div>
-              <p className="text-xs text-muted-foreground">Sum of all expenses on this site</p>
+              <p className="text-xs text-muted-foreground">Labour counted as wages {laborBasis === 'earned' ? 'earned' : 'paid'} (Settings → Accounting)</p>
+              <div className="mt-2 space-y-0.5 border-t pt-2 text-xs">
+                <div className="flex justify-between gap-2"><span className="text-muted-foreground">Wages earned</span><span className="tabular-nums">{formatCurrency(labor.earned)}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-muted-foreground">Wages paid</span><span className="tabular-nums">{formatCurrency(labor.paid)}</span></div>
+                <div className="flex justify-between gap-2 font-medium"><span>Still owed to workers</span><span className="tabular-nums">{formatCurrency(labor.owed)}</span></div>
+                {labor.advances > 0 && <div className="flex justify-between gap-2"><span className="text-muted-foreground">Advances given</span><span className="tabular-nums">{formatCurrency(labor.advances)}</span></div>}
+              </div>
             </CardContent>
           </Card>
         </div>

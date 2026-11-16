@@ -18,7 +18,8 @@ import { formatCurrency } from '@/lib/utils';
 import { format, isAfter, eachDayOfInterval, isBefore, isValid, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
-import { saleProfit, sumDirectExpenses } from '@/lib/costs';
+import { computeSiteSpend, saleProfit, sumDirectExpenses } from '@/lib/costs';
+import { siteLaborTotals, workerMoney } from '@/lib/wages';
 
 const HumanCharacter = dynamic(() => import('@/components/HumanCharacter'), {
   ssr: false,
@@ -155,77 +156,42 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
         };
     }, [allMachines, allInventory, allSales, manufacturingUnits]);
 
+    // Same total as each site's Summary tab (src/lib/costs.ts), using the company's
+    // accounting settings, so the Dashboard's budget bars match budget alerts.
+    const dashCompany = allCompanies.find(c => c.id === companyId);
     const siteExpenses = useMemo(() => {
         const expenseMap = new Map<string, number>();
-    
+        const todayStr = format(today, 'yyyy-MM-dd');
         sites.forEach(site => {
-            const siteLabor = allLabor.filter(l => l.siteId === site.id && !l.isDeleted);
-            
-            // Labour cost on the dashboard is what has actually been paid out. (A full day-by-day
-            // wage calculation used to run here for every worker and was then thrown away.)
-            const siteLaborIds = new Set(siteLabor.map(l => l.id));
-            const totalLaborCost = allLaborTransactions
-              .filter(t => siteLaborIds.has(t.laborId) && t.type === 'Payment' && !t.isDeleted)
-              .reduce((sum, t) => sum + t.amount, 0);
-    
-            const totalMaterialsCost = allInventory.filter(i => i.siteId === site.id && i.status === 'Bought' && !i.isDeleted).reduce((acc, i) => acc + (i.quantity * (i.pricePerUnit || 0)), 0);
-            
-            const siteMachines = allMachines.filter(m => m.assignedSiteId === site.id && !m.isDeleted);
-            const machineIdsOnSite = siteMachines.map(m => m.id);
-
-            const totalMaintenanceCost = allMaintenanceLogs.filter(l => machineIdsOnSite.includes(l.machineId) && !l.isDeleted && l.costAllocation === 'Site Expenses').reduce((acc, m) => acc + (m.cost || 0), 0);
-            const siteFuelCost = allFuelLogs.filter(f => f.siteId === site.id && !f.isDeleted).reduce((acc, f) => acc + f.cost, 0);
-    
-            let totalRentalCost = 0;
-            allRentedMaterials.filter(item => item.siteId === site.id && !item.isDeleted).forEach(item => {
-                const endDate = item.status === 'Returned' && item.returnDate ? new Date(item.returnDate) : today;
-                if (isAfter(endDate, new Date(item.startDate))) {
-                    const rentalPeriod = eachDayOfInterval({ start: new Date(item.startDate), end: endDate });
-                    rentalPeriod.forEach(day => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const attendance = allRentedMaterialAttendances.find(a => a.rentedMaterialId === item.id && a.date === dateStr);
-                        if (!attendance || attendance.status === 'Used') {
-                            totalRentalCost += item.rentPerDay * item.quantity;
-                        }
-                    });
-                }
-            });
-             siteMachines.filter(m => m.acquisition === 'Rented' && m.dailyRentalPrice && m.assignmentDate).forEach(machine => {
-                const startDate = new Date(machine.assignmentDate!);
-                if (isAfter(startDate, today)) return;
-
-                 const rentalPeriod = eachDayOfInterval({ start: startDate, end: today });
-                 rentalPeriod.forEach(day => {
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const attendance = allMachineAttendances.find(a => a.machineId === machine.id && a.date === dateStr);
-                    const status = attendance?.status || 'Unmarked';
-                    if (status === 'Present' || status === 'Unmarked') totalRentalCost += machine.dailyRentalPrice!;
-                    else if (status === 'Half-day') totalRentalCost += machine.dailyRentalPrice! / 2;
-                 });
-            });
-    
-            const otherExpenses = allExpenses.filter(e => e.siteId === site.id && !e.isDeleted);
-            const totalEmiCost = otherExpenses.filter(e => e.category === 'EMI').reduce((acc, e) => acc + e.amount, 0);
-            const totalTransportCost = otherExpenses.filter(e => e.category === 'Transport').reduce((acc, e) => acc + e.amount, 0);
-            // 'Other' here also covers manual Tools/Food expenses and defect-liability repairs,
-            // which used to be left out of the site total.
-            const totalOtherCost = sumDirectExpenses(otherExpenses) - totalEmiCost - totalTransportCost;
-            const totalToolCost = allTools.filter(t => t.siteId === site.id && !t.isDeleted).reduce((acc, t) => acc + (t.price || 0), 0);
-
-            const totalCost = totalLaborCost +
-                              totalMaterialsCost +
-                              totalMaintenanceCost +
-                              siteFuelCost +
-                              totalRentalCost +
-                              totalEmiCost +
-                              totalToolCost +
-                              totalTransportCost +
-                              totalOtherCost;
-    
-            expenseMap.set(site.id, totalCost);
+            const labor = siteLaborTotals(workerMoney({
+                labors: allLabor.filter(l => l.siteId === site.id && !l.isDeleted),
+                attendances: allAttendances.filter(a => a.siteId === site.id),
+                workLogs: allWorkLogs.filter(w => w.siteId === site.id),
+                transactions: allLaborTransactions.filter(t => t.siteId === site.id),
+                today: todayStr,
+                foodMode: dashCompany?.foodCostMode,
+            }));
+            expenseMap.set(site.id, computeSiteSpend({
+                siteId: site.id,
+                laborPaid: labor.paid,
+                laborEarned: labor.earned,
+                foodGiven: labor.food,
+                laborBasis: dashCompany?.laborCostBasis ?? 'earned',
+                foodMode: dashCompany?.foodCostMode,
+                expenses: allExpenses.filter(e => e.siteId === site.id),
+                materials: allInventory.filter(i => i.siteId === site.id && i.type === 'Material'),
+                machines: allMachines.filter(m => !m.isDeleted),
+                maintenanceLogs: allMaintenanceLogs,
+                fuelLogs: allFuelLogs,
+                rentedMaterials: allRentedMaterials.filter(r => r.siteId === site.id),
+                rentedMaterialAttendances: allRentedMaterialAttendances.filter(a => a.siteId === site.id),
+                machineAttendances: allMachineAttendances,
+                tools: allTools.filter(t => t.siteId === site.id),
+                today,
+            }).total);
         });
         return expenseMap;
-    }, [sites, allInventory, allLabor, allWorkLogs, allAttendances, allLaborTransactions, allMachines, allMaintenanceLogs, allFuelLogs, allRentedMaterials, allRentedMaterialAttendances, allMachineAttendances, allTools, allExpenses, today]);
+    }, [sites, dashCompany?.laborCostBasis, dashCompany?.foodCostMode, allInventory, allLabor, allWorkLogs, allAttendances, allLaborTransactions, allMachines, allMaintenanceLogs, allFuelLogs, allRentedMaterials, allRentedMaterialAttendances, allMachineAttendances, allTools, allExpenses, today]);
     
     if (sites.length === 0 && manufacturingUnits.length === 0 && !isSuperAdmin) {
         return (

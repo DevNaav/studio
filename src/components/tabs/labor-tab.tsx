@@ -37,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { logActivity } from '@/lib/activity-log';
 import { monthlyWageEarned } from '@/lib/payslip';
+import { workerMoney } from '@/lib/wages';
 
 
 const formSchema = z.object({
@@ -143,62 +144,13 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
     };
   }, [siteId, companyId, initialWageSummary]);
 
-    const wageSummary = useMemo(() => {
-    return labors.map(labor => {
-        const laborTransactions = transactions.filter(t => t.laborId === labor.id && !t.isDeleted);
-        const totalPaid = laborTransactions.filter(t => t.type === 'Payment').reduce((sum, t) => sum + t.amount, 0);
-
-        let totalWages = 0;
-        let daysWorked = 0;
-        const joiningDate = labor.dateOfJoining ? new Date(labor.dateOfJoining) : null;
-        
-        if (labor.wageType === 'Contract') {
-            totalWages = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).reduce((sum, log) => sum + log.wageEarned, 0);
-            daysWorked = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).length;
-        } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate) && !isAfter(joiningDate, today)) {
-            // Pro-rated by calendar days (shared with payslips, src/lib/payslip.ts).
-            totalWages = monthlyWageEarned(labor.wage, labor.dateOfJoining!, format(today, 'yyyy-MM-dd'));
-            daysWorked = differenceInDays(today, joiningDate);
-        } else if (labor.wageType === 'Daily' && joiningDate && labor.wage) {
-            // Someone joining in the future has earned nothing yet.
-            if (isValid(joiningDate) && !isAfter(joiningDate, today)) {
-                const allDays = eachDayOfInterval({ start: joiningDate, end: today });
-                // Look attendance up by date instead of scanning every record for every day.
-                const attendanceByDate = new Map(allAttendances.filter(a => a.laborId === labor.id).map(a => [a.date, a]));
-                let totalDailyWages = 0;
-                let daysWorkedCount = 0;
-
-                allDays.forEach(day => {
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const record = attendanceByDate.get(dateStr);
-                    const status = record?.status || (isBefore(day, today) ? 'Present' : 'Unmarked');
-                    
-                    let dayValue = 0;
-                    if (status === 'Present') dayValue = 1;
-                    else if (status === 'Half-day') dayValue = 0.5;
-                    
-                    if (dayValue > 0) {
-                        daysWorkedCount += dayValue;
-                        totalDailyWages += dayValue * labor.wage!;
-                    }
-                });
-                daysWorked = daysWorkedCount;
-                totalWages = totalDailyWages;
-            }
-        }
-
-        return {
-            id: labor.id,
-            name: labor.name,
-            role: labor.role,
-            wageType: labor.wageType,
-            daysWorked,
-            totalWages,
-            totalPaid: totalPaid,
-            balance: totalWages - totalPaid,
-        };
-    });
-  }, [labors, allAttendances, transactions, workLogs, today]);
+  // Earned, paid, food and balance per worker (src/lib/wages.ts, same rules as payslips).
+  // The company's food setting decides whether food is taken off the balance.
+  const wageSummary = useMemo(() => workerMoney({
+    labors, attendances: allAttendances, workLogs, transactions,
+    today: format(today, 'yyyy-MM-dd'),
+    foodMode: company?.foodCostMode,
+  }), [labors, allAttendances, transactions, workLogs, today, company?.foodCostMode]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -570,7 +522,10 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
                         <TableCell><Badge variant={getStatusBadgeVariant(status)}>{status}</Badge></TableCell>
                         <TableCell>{summary.daysWorked}</TableCell>
                         <TableCell className="text-right">{formatCurrency(summary.totalWages)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(summary.totalPaid)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(summary.totalPaid)}
+                          {summary.foodDeducted > 0 && <div className="text-xs text-muted-foreground">+ food {formatCurrency(summary.foodDeducted)}</div>}
+                        </TableCell>
                         <TableCell className={`text-right font-bold ${summary.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           {formatCurrency(summary.balance)}
                         </TableCell>
@@ -1082,6 +1037,7 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
         attendances={allAttendances}
         workLogs={workLogs}
         transactions={transactions}
+        foodMode={company?.foodCostMode}
       />
       <PayslipDialog
         open={!!payslipLabor}
@@ -1093,6 +1049,7 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
         attendances={allAttendances}
         workLogs={workLogs}
         transactions={transactions}
+        foodMode={company?.foodCostMode}
       />
     </div>
   );

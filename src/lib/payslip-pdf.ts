@@ -164,6 +164,7 @@ function drawPayslip(doc: jsPDF, { payslip, labor, companyName, siteName, logoDa
       [payslip.broughtForward >= 0 ? 'Balance from earlier months' : 'Advance from earlier months', rs(payslip.broughtForward)],
       [`Earned in ${payslip.monthLabel}${payslip.isRunningMonth ? ' (so far)' : ''}`, rs(payslip.earned)],
       ['Paid in this month', `- ${rs(payslip.paid)}`],
+      ...(payslip.food > 0 ? [[`Food given (${payslip.foodLines.length} time${payslip.foodLines.length === 1 ? '' : 's'}), cut from wages`, `- ${rs(payslip.food)}`]] : []),
       [
         { content: owed >= 0 ? 'Balance due to worker' : 'Advance paid (worker owes)', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
         { content: rs(Math.abs(owed)), styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },

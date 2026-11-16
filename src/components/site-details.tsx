@@ -33,6 +33,8 @@ import { Separator } from './ui/separator';
 import { sumDirectExpenses } from '@/lib/costs';
 import { effectivePlan } from '@/lib/plans';
 import { monthlyWageEarned } from '@/lib/payslip';
+import { siteLaborTotals, workerMoney } from '@/lib/wages';
+import { computeSiteSpend } from '@/lib/costs';
 
 interface SiteDetailsProps {
   site: Site;
@@ -96,124 +98,32 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
     };
   }, [site.id, site.companyId]);
 
-    const wageSummary = useMemo(() => {
-    return labors.map(labor => {
-        const laborTransactions = transactions.filter(t => t.laborId === labor.id && !t.isDeleted);
-        const totalPaid = laborTransactions.filter(t => t.type === 'Payment').reduce((sum, t) => sum + t.amount, 0);
-
-        let totalWages = 0;
-        let daysWorked = 0;
-        const joiningDate = labor.dateOfJoining ? new Date(labor.dateOfJoining) : null;
-        
-        if (labor.wageType === 'Contract') {
-            totalWages = workLogs.filter(log => log.laborerId === labor.id && !log.isDeleted).reduce((sum, log) => sum + log.wageEarned, 0);
-            daysWorked = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).length;
-        } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate) && !isAfter(joiningDate, today)) {
-            // Pro-rated by calendar days (shared with payslips, src/lib/payslip.ts).
-            totalWages = monthlyWageEarned(labor.wage, labor.dateOfJoining!, format(today, 'yyyy-MM-dd'));
-            daysWorked = differenceInDays(today, joiningDate);
-        } else if (labor.wageType === 'Daily' && joiningDate && labor.wage) {
-            // Someone joining in the future has earned nothing yet.
-            if (isValid(joiningDate) && !isAfter(joiningDate, today)) {
-                const allDays = eachDayOfInterval({ start: joiningDate, end: today });
-                // Look attendance up by date instead of scanning every record for every day.
-                const attendanceByDate = new Map(allAttendances.filter(a => a.laborId === labor.id).map(a => [a.date, a]));
-                let totalDailyWages = 0;
-                let daysWorkedCount = 0;
-
-                allDays.forEach(day => {
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const record = attendanceByDate.get(dateStr);
-                    const status = record?.status || (isBefore(day, today) ? 'Present' : 'Unmarked');
-                    
-                    let dayValue = 0;
-                    if (status === 'Present') dayValue = 1;
-                    else if (status === 'Half-day') dayValue = 0.5;
-                    
-                    if (dayValue > 0) {
-                        daysWorkedCount += dayValue;
-                        totalDailyWages += dayValue * labor.wage!;
-                    }
-                });
-                daysWorked = daysWorkedCount;
-                totalWages = totalDailyWages;
-            }
-        }
-
-        return {
-            id: labor.id,
-            name: labor.name,
-            role: labor.role,
-            wageType: labor.wageType,
-            daysWorked,
-            totalWages,
-            totalPaid: totalPaid,
-            balance: totalWages - totalPaid,
-        };
-    });
-  }, [labors, allAttendances, transactions, workLogs, today]);
+  // Earned, paid, food and balance per worker (src/lib/wages.ts, same rules as payslips).
+  // The company's food setting decides whether food is taken off the balance.
+  const wageSummary = useMemo(() => workerMoney({
+    labors, attendances: allAttendances, workLogs, transactions,
+    today: format(today, 'yyyy-MM-dd'),
+    foodMode: company?.foodCostMode,
+  }), [labors, allAttendances, transactions, workLogs, today, company?.foodCostMode]);
   
   const totalLaborWages = useMemo(() => {
     return wageSummary.reduce((acc, s) => acc + s.totalWages, 0);
   }, [wageSummary]);
   
+  // Same total as the Summary tab (src/lib/costs.ts), using the company's accounting settings.
   const totalSiteExpenses = useMemo(() => {
-    const siteMachines = allMachines.filter(m => m.assignedSiteId === site.id && !m.isDeleted);
-    const machineIdsOnSite = siteMachines.map(m => m.id);
-
-    const laborCost = wageSummary.reduce((acc, s) => acc + s.totalWages, 0);
-    
-    const materialsCost = materials.filter(i => i.status === 'Bought' && !i.isDeleted).reduce((sum, i) => sum + (i.quantity * (i.pricePerUnit || 0)), 0);
-    const maintenanceCost = allMaintenanceLogs.filter(l => !l.isDeleted && machineIdsOnSite.includes(l.machineId) && l.costAllocation === 'Site Expenses').reduce((sum, l) => sum + (l.cost || 0), 0);
-    const fuelCost = allFuelLogs.filter(f => f.siteId === site.id && !f.isDeleted).reduce((sum, f) => sum + f.cost, 0);
-    // Only direct expenses: material-transfer and rental-settlement expenses are already
-    // counted in materials and rent above, so adding every expense counted them twice.
-    const otherExpensesCost = sumDirectExpenses(expenses);
-    const toolCost = tools.filter(t => !t.isDeleted).reduce((sum, t) => sum + (t.price || 0), 0);
-
-    let rentalCost = 0;
-    rentedMaterials.filter(item => !item.isDeleted).forEach(item => {
-        const endDate = item.status === 'Returned' && item.returnDate ? new Date(item.returnDate) : today;
-        let daysUsed = 0;
-        if (isAfter(endDate, new Date(item.startDate))) {
-            const rentalPeriod = eachDayOfInterval({ start: new Date(item.startDate), end: endDate });
-            rentalPeriod.forEach(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const attendance = rentedMaterialAttendances.find(a => a.rentedMaterialId === item.id && a.date === dateStr);
-                if (!attendance || attendance.status === 'Used') {
-                    daysUsed++;
-                }
-            });
-        }
-        rentalCost += item.rentPerDay * item.quantity * daysUsed;
-    });
-
-    siteMachines.filter(m => m.acquisition === 'Rented' && m.dailyRentalPrice && m.assignmentDate).forEach(machine => {
-        const startDate = new Date(machine.assignmentDate!);
-        // A machine booked for a future date costs nothing yet. (date-fns 3 returns the days
-        // *between* the dates when start is after end, which used to bill those days.)
-        if (!isValid(startDate) || isAfter(startDate, today)) return;
-        const rentalPeriod = eachDayOfInterval({ start: startDate, end: today });
-        rentalPeriod.forEach(day => {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            const attendance = machineAttendances.find(a => a.machineId === machine.id && a.date === dateStr);
-            const status = attendance?.status || 'Unmarked';
-            if (status === 'Present' || status === 'Unmarked') rentalCost += machine.dailyRentalPrice!;
-            else if (status === 'Half-day') rentalCost += machine.dailyRentalPrice! / 2;
-        });
-    });
-
-    return laborCost +
-           materialsCost +
-           maintenanceCost +
-           fuelCost +
-           otherExpensesCost +
-           toolCost +
-           rentalCost;
-  }, [
-    wageSummary, materials, allMachines, site.id, allMaintenanceLogs, 
-    allFuelLogs, expenses, tools, rentedMaterials, rentedMaterialAttendances, machineAttendances, today
-  ]);
+    const labor = siteLaborTotals(wageSummary);
+    return computeSiteSpend({
+      siteId: site.id,
+      laborPaid: labor.paid,
+      laborEarned: labor.earned,
+      foodGiven: labor.food,
+      laborBasis: company?.laborCostBasis ?? 'earned',
+      foodMode: company?.foodCostMode,
+      expenses, materials, machines: allMachines, maintenanceLogs: allMaintenanceLogs, fuelLogs: allFuelLogs,
+      rentedMaterials, rentedMaterialAttendances, machineAttendances, tools, today,
+    }).total;
+  }, [wageSummary, company?.laborCostBasis, company?.foodCostMode, expenses, materials, allMachines, allMaintenanceLogs, allFuelLogs, rentedMaterials, rentedMaterialAttendances, machineAttendances, tools, today]);
 
   const getStatusVariant = (status: Site['status']) => {
     switch (status) {

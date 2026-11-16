@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, subMonths } from 'date-fns';
 import { Download, FileText, Loader2, Share2 } from 'lucide-react';
-import type { Attendance, Labor, LaborTransaction, WorkLog } from '@/lib/types';
+import type { Attendance, FoodCostMode, Labor, LaborTransaction, WorkLog } from '@/lib/types';
 import { buildPayslip } from '@/lib/payslip';
 import { buildPayslipPdf, buildPayslipsPdf, payslipFileName } from '@/lib/payslip-pdf';
 import { formatCurrency, todayISO } from '@/lib/utils';
@@ -27,6 +27,8 @@ interface PayslipDialogProps {
   attendances: Attendance[];
   workLogs: WorkLog[];
   transactions: LaborTransaction[];
+  /** Company setting: 'deduct' takes food given off the worker's wages. */
+  foodMode?: FoodCostMode;
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -38,7 +40,7 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
-export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName, logoUrl, attendances, workLogs, transactions }: PayslipDialogProps) {
+export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName, logoUrl, attendances, workLogs, transactions, foodMode }: PayslipDialogProps) {
   const { toast } = useToast();
   const today = todayISO();
   const months = useMemo(
@@ -57,8 +59,8 @@ export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName
   }, [open, months]);
 
   const payslip = useMemo(
-    () => (labor ? buildPayslip({ labor, month, today, attendances, workLogs, transactions }) : null),
-    [labor, month, today, attendances, workLogs, transactions],
+    () => (labor ? buildPayslip({ labor, month, today, attendances, workLogs, transactions, foodMode }) : null),
+    [labor, month, today, attendances, workLogs, transactions, foodMode],
   );
 
   const makeFile = async () => {
@@ -129,6 +131,7 @@ export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName
             <Row label={payslip.broughtForward >= 0 ? 'From earlier months' : 'Advance from earlier'} value={formatCurrency(payslip.broughtForward)} />
             <Row label={`Earned${payslip.isRunningMonth ? ' so far' : ''}`} value={formatCurrency(payslip.earned)} />
             <Row label="Paid this month" value={`- ${formatCurrency(payslip.paid)}`} />
+            {payslip.food > 0 && <Row label="Food (cut from wages)" value={`- ${formatCurrency(payslip.food)}`} />}
             <div className="mt-1 border-t pt-1">
               <Row strong label={owed >= 0 ? 'Balance due to worker' : 'Advance (worker owes)'} value={formatCurrency(Math.abs(owed))} />
             </div>
@@ -157,7 +160,7 @@ export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName
  * Workers with nothing to show that month (not joined yet, nothing earned, paid or owed) are skipped.
  */
 export function AllPayslipsDialog({
-  open, onOpenChange, labors, siteName, companyName, logoUrl, attendances, workLogs, transactions,
+  open, onOpenChange, labors, siteName, companyName, logoUrl, attendances, workLogs, transactions, foodMode,
 }: Omit<PayslipDialogProps, 'labor'> & { labors: Labor[] }) {
   const { toast } = useToast();
   const today = todayISO();
@@ -176,10 +179,10 @@ export function AllPayslipsDialog({
   }, [open, months]);
 
   const slips = useMemo(() => labors
-    .map(labor => ({ labor, payslip: buildPayslip({ labor, month, today, attendances, workLogs, transactions }) }))
-    .filter(({ payslip: p }) => p.earned > 0 || p.paid > 0 || Math.abs(p.broughtForward) > 0.005)
+    .map(labor => ({ labor, payslip: buildPayslip({ labor, month, today, attendances, workLogs, transactions, foodMode }) }))
+    .filter(({ payslip: p }) => p.earned > 0 || p.paid > 0 || p.food > 0 || Math.abs(p.broughtForward) > 0.005)
     .sort((a, b) => a.labor.name.localeCompare(b.labor.name)),
-  [labors, month, today, attendances, workLogs, transactions]);
+  [labors, month, today, attendances, workLogs, transactions, foodMode]);
 
   const totals = slips.reduce((t, { payslip: p }) => ({ earned: t.earned + p.earned, paid: t.paid + p.paid, due: t.due + p.closingBalance }), { earned: 0, paid: 0, due: 0 });
   const monthLabel = months.find(m => m.value === month)?.label ?? month;

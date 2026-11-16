@@ -13,10 +13,12 @@ import { db } from '@/lib/firebase';
 import { computeAlerts, type AlertInputs, type AppAlert, type AlertTarget } from '@/lib/alerts';
 import { todayISO, cn } from '@/lib/utils';
 import type {
-  Expense, FuelLog, InventoryItem, Labor, LaborTransaction, Machine, MachineAttendance, MaintenanceLog,
+  Attendance, Company, WorkLog, Expense, FuelLog, InventoryItem, Labor, LaborTransaction, Machine, MachineAttendance, MaintenanceLog,
   RentedMaterial, RentedMaterialAttendance, Site, Task, Tool,
 } from '@/lib/types';
 import { computeSiteSpend } from '@/lib/costs';
+import { siteLaborTotals, workerMoney } from '@/lib/wages';
+import { useSite } from '@/context/site-context';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -33,8 +35,9 @@ async function fetchCompany<T>(name: string, companyId: string): Promise<T[]> {
  * Money spent per budgeted site, using the same calculation as the site's Summary tab.
  * Only runs for admins when at least one active site has a budget (extra reads otherwise).
  */
-async function fetchSiteSpend(companyId: string, budgetSites: Site[], machines: Machine[], rentedMaterials: RentedMaterial[]): Promise<Map<string, number>> {
-  const [expenses, labors, transactions, materials, maintenanceLogs, fuelLogs, rentedMaterialAttendances, machineAttendances, tools] = await Promise.all([
+async function fetchSiteSpend(companyId: string, budgetSites: Site[], machines: Machine[], rentedMaterials: RentedMaterial[], settings: Pick<Company, 'laborCostBasis' | 'foodCostMode'>): Promise<Map<string, number>> {
+  const basis = settings.laborCostBasis ?? 'earned';
+  const [expenses, labors, transactions, materials, maintenanceLogs, fuelLogs, rentedMaterialAttendances, machineAttendances, tools, attendances, workLogs] = await Promise.all([
     fetchCompany<Expense>('expenses', companyId),
     fetchCompany<Labor>('labors', companyId),
     fetchCompany<LaborTransaction>('labor_transactions', companyId),
@@ -44,17 +47,29 @@ async function fetchSiteSpend(companyId: string, budgetSites: Site[], machines: 
     fetchCompany<RentedMaterialAttendance>('rented_material_attendances', companyId),
     fetchCompany<MachineAttendance>('machine_attendances', companyId),
     fetchCompany<Tool>('tools', companyId),
+    // Wages earned need attendance and work logs (skipped when the company counts wages paid).
+    basis === 'earned' ? fetchCompany<Attendance>('attendances', companyId) : Promise.resolve([] as Attendance[]),
+    basis === 'earned' ? fetchCompany<WorkLog>('work_logs', companyId) : Promise.resolve([] as WorkLog[]),
   ]);
+  const today = todayISO();
   const spend = new Map<string, number>();
   budgetSites.forEach(site => {
-    // Labour = payments to the workers currently on this site (as the site's Labor tab shows).
-    const siteLaborIds = new Set(labors.filter(l => l.siteId === site.id).map(l => l.id));
-    const laborPaid = transactions
-      .filter(t => t.siteId === site.id && t.type === 'Payment' && siteLaborIds.has(t.laborId))
-      .reduce((s, t) => s + t.amount, 0);
+    // Labour for the workers currently on this site, exactly as the site's Labor tab works it out.
+    const labor = siteLaborTotals(workerMoney({
+      labors: labors.filter(l => l.siteId === site.id),
+      attendances: attendances.filter(a => a.siteId === site.id),
+      workLogs: workLogs.filter(w => w.siteId === site.id),
+      transactions: transactions.filter(t => t.siteId === site.id),
+      today,
+      foodMode: settings.foodCostMode,
+    }));
     spend.set(site.id, computeSiteSpend({
       siteId: site.id,
-      laborPaid,
+      laborPaid: labor.paid,
+      laborEarned: labor.earned,
+      foodGiven: labor.food,
+      laborBasis: basis,
+      foodMode: settings.foodCostMode,
       expenses: expenses.filter(e => e.siteId === site.id),
       materials: materials.filter(i => i.siteId === site.id && i.type === 'Material'),
       machines, maintenanceLogs, fuelLogs,
@@ -67,7 +82,7 @@ async function fetchSiteSpend(companyId: string, budgetSites: Site[], machines: 
   return spend;
 }
 
-async function fetchAlertData(companyId: string, isAdmin: boolean, sites: Site[]): Promise<FetchedData> {
+async function fetchAlertData(companyId: string, isAdmin: boolean, sites: Site[], settings: Pick<Company, 'laborCostBasis' | 'foodCostMode'>): Promise<FetchedData> {
   // Admin-only pages' data is skipped for other roles (their alerts would lead nowhere).
   const adminOnly = <T,>(name: string) => (isAdmin ? fetchCompany<T>(name, companyId) : Promise.resolve([] as T[]));
   const [inventory, emiPayments, machines, sales, documents, warranties, liabilities, rentedMaterials] = await Promise.all([
@@ -81,7 +96,7 @@ async function fetchAlertData(companyId: string, isAdmin: boolean, sites: Site[]
     fetchCompany<FetchedData['rentedMaterials'][number]>('rented_materials', companyId),
   ]);
   const budgetSites = isAdmin ? sites.filter(s => !s.isDeleted && s.status !== 'Completed' && (s.budget ?? 0) > 0) : [];
-  const siteSpend = budgetSites.length ? await fetchSiteSpend(companyId, budgetSites, machines, rentedMaterials) : undefined;
+  const siteSpend = budgetSites.length ? await fetchSiteSpend(companyId, budgetSites, machines, rentedMaterials, settings) : undefined;
   return { inventory, emiPayments, machines, sales, documents, warranties, liabilities, rentedMaterials, siteSpend };
 }
 
@@ -119,6 +134,12 @@ export function AlertsBell({ companyId, userId, isAdmin, sites, tasks, onNavigat
   // Latest sites without re-fetching every time the list object changes.
   const sitesRef = useRef(sites);
   sitesRef.current = sites;
+  // The company's accounting settings decide how labour counts towards budgets.
+  const { allCompanies } = useSite();
+  const company = allCompanies.find(c => c.id === companyId);
+  const settingsRef = useRef<Pick<Company, 'laborCostBasis' | 'foodCostMode'>>({});
+  settingsRef.current = { laborCostBasis: company?.laborCostBasis, foodCostMode: company?.foodCostMode };
+  const settingsKey = `${company?.laborCostBasis ?? ''}|${company?.foodCostMode ?? ''}`;
   const budgetKey = sites.map(s => `${s.id}:${s.budget ?? 0}:${s.status}`).join('|');
   const seenKey = `inventra-alerts-seen:${userId}:${companyId ?? 'none'}`;
   const [seen, setSeen] = useState<Set<string>>(new Set());
@@ -130,7 +151,7 @@ export function AlertsBell({ companyId, userId, isAdmin, sites, tasks, onNavigat
     setLoading(true);
     setError(null);
     try {
-      setData(await fetchAlertData(companyId, isAdmin, sitesRef.current));
+      setData(await fetchAlertData(companyId, isAdmin, sitesRef.current, settingsRef.current));
       lastFetch.current = Date.now();
     } catch (e) {
       console.error('Could not load alerts', e);
@@ -138,7 +159,7 @@ export function AlertsBell({ companyId, userId, isAdmin, sites, tasks, onNavigat
     } finally {
       setLoading(false);
     }
-  }, [companyId, isAdmin, budgetKey]);
+  }, [companyId, isAdmin, budgetKey, settingsKey]);
 
   // Load once per company; later refreshes happen when the bell is opened.
   useEffect(() => {

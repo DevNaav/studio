@@ -192,7 +192,7 @@ export function TasksTab({ site }: TasksTabProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><ListTodo />Daily Tasks</CardTitle>
+            <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 shrink-0 text-primary" />Daily Tasks</CardTitle>
             <CardDescription>Assign and track daily work for this site.</CardDescription>
           </div>
           {isAdmin && <Button onClick={() => handleOpenTaskDialog()}><Plus className="mr-2 h-4 w-4" /> Add Task</Button>}

@@ -718,7 +718,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Tractor /> Global Machine Management</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" /> All machines</CardTitle>
                 <CardDescription>Select a company to view and manage machines.</CardDescription>
             </CardHeader>
         </Card>
@@ -731,7 +731,7 @@ export function MachinesPage({ companyId }: MachinesPageProps) {
     <Card>
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
-            <CardTitle className="flex items-center gap-2"><Tractor /> Global Machine Management</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" /> All machines</CardTitle>
             <CardDescription>Track all company-owned and rented machines across all sites.</CardDescription>
             </div>
             {userProfile && (

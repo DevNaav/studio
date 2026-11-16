@@ -144,7 +144,7 @@ export function OrderMaterialsTab({ siteId }: OrderMaterialsTabProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ShoppingCart /> Re-order Materials</CardTitle>
+          <CardTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5 shrink-0 text-primary" /> Re-order Materials</CardTitle>
           <CardDescription>Select a previously purchased material to quickly place a new order with the last known vendor.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -187,7 +187,7 @@ export function OrderMaterialsTab({ siteId }: OrderMaterialsTabProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Truck /> Pending Deliveries</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5 shrink-0 text-primary" /> Pending Deliveries</CardTitle>
           <CardDescription>Track incoming material orders for this site.</CardDescription>
         </CardHeader>
         <CardContent>

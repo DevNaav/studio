@@ -210,22 +210,22 @@ export function FloatingAssistant() {
       {/* Glassmorphic Chat Window */}
       {isOpen && (
         <div
-          className="fixed bottom-24 right-6 z-50 w-96 h-[520px] flex flex-col rounded-2xl border border-white/10 bg-black/45 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in-20"
+          className="fixed bottom-24 right-6 z-50 w-96 h-[520px] flex flex-col rounded-2xl border border-border bg-card/95 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in-20"
           style={{
             backdropFilter: 'blur(20px)',
           }}
         >
           {/* Header */}
-          <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+          <div className="p-4 border-b border-border flex items-center justify-between bg-muted">
             <div className="flex items-center gap-2">
               <div className="relative">
                 <Avatar className="h-8 w-8 bg-primary/20 border border-primary/40">
                   <AvatarFallback className="bg-transparent"><Bot className="h-4 w-4 text-primary" /></AvatarFallback>
                 </Avatar>
-                <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border border-black animate-pulse" />
+                <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card animate-pulse" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   Inventra Co-Pilot
                   <Sparkles className="h-3 w-3 text-yellow-400 animate-pulse" />
                 </h3>
@@ -250,9 +250,9 @@ export function FloatingAssistant() {
             <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
               <div className="space-y-4 pr-2">
                 {messages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-72 text-center p-6 bg-white/5 border border-dashed border-white/10 rounded-xl">
+                  <div className="flex flex-col items-center justify-center h-72 text-center p-6 bg-muted border border-dashed border-border rounded-xl">
                     <Bot className="h-10 w-10 text-primary mb-3 animate-bounce" />
-                    <h4 className="text-sm font-semibold text-white">Ask your Co-Pilot</h4>
+                    <h4 className="text-sm font-semibold text-foreground">Ask your Co-Pilot</h4>
                     <p className="text-xs text-muted-foreground max-w-[200px] mt-1 leading-relaxed">
                       I can help you build projects, track sites, manage resources, and more!
                     </p>
@@ -266,12 +266,12 @@ export function FloatingAssistant() {
                         <AvatarFallback className="bg-transparent"><Bot className="h-3.5 w-3.5 text-primary" /></AvatarFallback>
                       </Avatar>
                     )}
-                    <div className={`max-w-[75%] rounded-2xl p-3 text-xs leading-relaxed ${message.role === 'user' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-white/5 border border-white/10 text-white rounded-tl-none'}`}>
+                    <div className={`max-w-[75%] rounded-2xl p-3 text-xs leading-relaxed ${message.role === 'user' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-muted border border-border text-foreground rounded-tl-none'}`}>
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
                     {message.role === 'user' && (
                       <Avatar className="h-7 w-7 bg-primary">
-                        <AvatarFallback className="text-white"><User className="h-3.5 w-3.5" /></AvatarFallback>
+                        <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-3.5 w-3.5" /></AvatarFallback>
                       </Avatar>
                     )}
                   </div>
@@ -282,7 +282,7 @@ export function FloatingAssistant() {
                     <Avatar className="h-7 w-7 bg-primary/20 border border-primary/40 animate-pulse">
                       <AvatarFallback className="bg-transparent"><Bot className="h-3.5 w-3.5 text-primary" /></AvatarFallback>
                     </Avatar>
-                    <div className="max-w-[75%] rounded-2xl p-3 bg-white/5 border border-white/10 text-muted-foreground text-xs flex items-center gap-2 rounded-tl-none animate-pulse">
+                    <div className="max-w-[75%] rounded-2xl p-3 bg-muted border border-border text-muted-foreground text-xs flex items-center gap-2 rounded-tl-none animate-pulse">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                       <span>Thinking...</span>
                     </div>
@@ -295,14 +295,14 @@ export function FloatingAssistant() {
           {/* Footer Input */}
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="p-3 border-t border-white/10 bg-white/5 flex items-center gap-2"
+            className="p-3 border-t border-border bg-muted flex items-center gap-2"
           >
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={toggleListening}
-              className={`h-8 w-8 rounded-full transition-all duration-300 ${isListening ? 'text-destructive bg-destructive/10 hover:bg-destructive/20 animate-pulse scale-105' : 'text-muted-foreground hover:bg-white/5 hover:text-white'}`}
+              className={`h-8 w-8 rounded-full transition-all duration-300 ${isListening ? 'text-destructive bg-destructive/10 hover:bg-destructive/20 animate-pulse scale-105' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
               title={isListening ? "Listening... Click to stop" : "Use Voice Input"}
               disabled={isLoading}
             >
@@ -319,7 +319,7 @@ export function FloatingAssistant() {
                   window.speechSynthesis?.cancel();
                 }
               }}
-              className={`h-8 w-8 rounded-full transition-all duration-300 ${voiceEnabled ? 'text-primary bg-primary/10 hover:bg-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-white'}`}
+              className={`h-8 w-8 rounded-full transition-all duration-300 ${voiceEnabled ? 'text-primary bg-primary/10 hover:bg-primary/20' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
               title={voiceEnabled ? "Voice Output On" : "Voice Output Off"}
               disabled={isLoading}
             >
@@ -334,7 +334,7 @@ export function FloatingAssistant() {
                   {...field}
                   placeholder={isListening ? "Listening..." : "Message Co-Pilot..."}
                   rows={1}
-                  className="flex-1 min-h-[36px] max-h-[100px] py-2 px-3 resize-none bg-white/5 border-white/10 text-white placeholder-white/30 text-xs rounded-xl focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:border-primary/50"
+                  className="flex-1 min-h-[36px] max-h-[100px] py-2 px-3 resize-none bg-muted border-border text-foreground placeholder:text-muted-foreground text-xs rounded-xl focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:border-primary/50"
                   disabled={isLoading}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {

@@ -159,7 +159,7 @@ export function SupportPage({ userProfile }: SupportPageProps) {
       {!isSuperAdmin && (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><LifeBuoy />Support Center</CardTitle>
+          <CardTitle className="flex items-center gap-2"><LifeBuoy className="h-5 w-5 shrink-0 text-primary" />Support Center</CardTitle>
           <CardDescription>Submit a new support ticket or view the status of your existing tickets.</CardDescription>
         </CardHeader>
         <CardContent>

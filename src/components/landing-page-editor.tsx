@@ -246,7 +246,7 @@ export default function LandingPageEditor() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="flex items-center gap-2"><Globe /> Landing Page Editor</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5 shrink-0 text-primary" /> Landing Page Editor</CardTitle>
                     <CardDescription>Click on any text to edit it directly. Changes are saved when you click the "Save All Changes" button.</CardDescription>
                 </div>
                 <Button onClick={handleSave} disabled={isSubmitting}>

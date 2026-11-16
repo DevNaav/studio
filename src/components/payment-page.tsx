@@ -131,7 +131,7 @@ export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }:
     <div className="flex justify-center items-start pt-10">
       <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><CreditCard /> Complete Your Purchase</CardTitle>
+          <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 shrink-0 text-primary" /> Complete Your Purchase</CardTitle>
           <CardDescription>You are purchasing the {selectedPlan.name} ({billingCycle}) for <strong>{formatCurrency(price)}</strong>/{billingCycle === 'annually' ? 'year' : 'month'}.</CardDescription>
         </CardHeader>
         <CardContent>

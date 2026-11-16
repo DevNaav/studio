@@ -75,7 +75,7 @@ export function ThreatModelerPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ShieldAlert /> AI Threat Modeler</CardTitle>
+          <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 shrink-0 text-primary" /> AI Threat Modeler</CardTitle>
           <CardDescription>
             Describe your project, including technologies used, data handled, and user roles. 
             The AI will analyze it and identify potential security threats.

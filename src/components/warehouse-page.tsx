@@ -347,7 +347,7 @@ export function WarehousePage({ companyId }: WarehousePageProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><Warehouse /> Warehouse Inventory</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Warehouse className="h-5 w-5 text-primary" /> Warehouse stock</CardTitle>
             <CardDescription>Central inventory for all materials not assigned to a specific site.</CardDescription>
           </div>
            <div className="flex gap-2">
@@ -374,12 +374,12 @@ export function WarehousePage({ companyId }: WarehousePageProps) {
               {warehouseSummary.length > 0 ? (
                 warehouseSummary.map((item) => (
                   <TableRow key={item.name} className={item.lowStockThreshold && item.stored <= item.lowStockThreshold ? 'bg-destructive/10' : ''}>
-                    <TableCell className="font-medium flex items-center gap-2">
+                    <TableCell className="font-medium"><div className="flex items-center gap-2">
                       {item.lowStockThreshold && item.stored <= item.lowStockThreshold && (
                         <AlertTriangle className="h-4 w-4 text-destructive" />
                       )}
                       {item.name}
-                    </TableCell>
+                    </div></TableCell>
                     <TableCell>{item.stored.toLocaleString()} {item.unit}</TableCell>
                     <TableCell>₹{item.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-right space-x-2">

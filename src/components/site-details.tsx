@@ -170,7 +170,7 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                <Badge variant={getStatusVariant(site.status)} className="text-base px-3 py-1">{site.status}</Badge>
+                <Badge variant={getStatusVariant(site.status)} className="rounded-full px-2.5 py-0.5 text-xs">{site.status}</Badge>
                 {isAdmin && (
                   <>
                     {isCompletable && (

@@ -243,7 +243,7 @@ export function UserRightsTab({ companyId, company }: UserRightsTabProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><KeyRound />Custom Roles & Permissions</CardTitle>
+            <CardTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5 shrink-0 text-primary" />Custom Roles & Permissions</CardTitle>
             <CardDescription>
               Define custom roles and assign granular permissions.
             </CardDescription>
@@ -284,7 +284,7 @@ export function UserRightsTab({ companyId, company }: UserRightsTabProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><Users /> User Management</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 shrink-0 text-primary" /> User Management</CardTitle>
             <CardDescription>
               {isSuperAdmin && !companyId
                 ? 'Select a company above to view and manage its users.'

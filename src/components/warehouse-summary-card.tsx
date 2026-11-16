@@ -79,7 +79,7 @@ export function WarehouseSummaryCard({ companyId }: WarehouseSummaryCardProps) {
   return (
      <Card className="tw-neon scroll-anim relative">
         <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Warehouse /> Warehouse Stock</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Warehouse className="h-5 w-5 shrink-0 text-primary" /> Warehouse Stock</CardTitle>
             <CardDescription>Current inventory in the main warehouse.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -99,12 +99,12 @@ export function WarehouseSummaryCard({ companyId }: WarehouseSummaryCardProps) {
                         <TableBody>
                             {warehouseSummary.map(item => (
                                 <TableRow key={item.name} className={item.lowStockThreshold && item.stored <= item.lowStockThreshold ? 'bg-destructive/10' : ''}>
-                                    <TableCell className="font-medium flex items-center gap-2">
+                                    <TableCell className="font-medium"><div className="flex items-center gap-2">
                                         {item.lowStockThreshold && item.stored <= item.lowStockThreshold && (
                                             <AlertTriangle className="h-4 w-4 text-destructive" />
                                         )}
                                         {item.name}
-                                    </TableCell>
+                                    </div></TableCell>
                                     <TableCell className="text-right">{item.stored.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})} {item.unit}</TableCell>
                                 </TableRow>
                             ))}

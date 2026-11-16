@@ -99,7 +99,7 @@ export default function ContactPageEditor() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><Mail /> Contact Page Editor</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5 shrink-0 text-primary" /> Contact Page Editor</CardTitle>
             <CardDescription>Click on any text to edit it directly. Save your changes when you're done.</CardDescription>
           </div>
           <Button onClick={handleSave} disabled={isSubmitting}>

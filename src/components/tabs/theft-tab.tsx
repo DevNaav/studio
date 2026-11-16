@@ -91,7 +91,7 @@ export function TheftTab({ siteId }: TheftTabProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><Siren /> Theft Log</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Siren className="h-5 w-5 shrink-0 text-primary" /> Theft Log</CardTitle>
             <CardDescription>Record and manage theft incidents on this site.</CardDescription>
           </div>
           <Button onClick={() => setIsDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Log Incident</Button>

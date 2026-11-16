@@ -149,7 +149,7 @@ export function AssistantPage() {
   return (
     <Card className="h-[calc(100vh-8rem)] flex flex-col">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Sparkles /> AI Assistant</CardTitle>
+        <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 shrink-0 text-primary" /> AI Assistant</CardTitle>
         <CardDescription>Ask me anything about your construction projects, or anything else!</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">

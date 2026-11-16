@@ -67,7 +67,7 @@ export function GeneralExpenseChart() {
   return (
      <Card className="tw-neon">
         <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Wrench /> General Company Expenses</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 shrink-0 text-primary" /> General Company Expenses</CardTitle>
             <CardDescription>Breakdown of expenses not tied to a specific site.</CardDescription>
         </CardHeader>
         <CardContent>

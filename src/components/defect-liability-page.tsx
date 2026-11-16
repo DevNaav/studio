@@ -159,7 +159,7 @@ export function DefectLiabilityPage({ companyId }: DefectLiabilityPageProps) {
         <>
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><ShieldCheck />Defect Liability</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 shrink-0 text-primary" />Defect Liability</CardTitle>
                     <CardDescription>Monitor defect liability periods and retention amounts for all your completed projects.</CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -104,7 +104,7 @@ export function DocumentsTab({ siteId, isMain = false }: DocumentsTabProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2"><FileText /> {isMain ? 'Company Documents' : 'Site Documents'}</CardTitle>
+          <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 shrink-0 text-primary" /> {isMain ? 'Company Documents' : 'Site Documents'}</CardTitle>
           <CardDescription>{isMain ? 'Manage documents for the entire operation.' : 'Manage documents specific to this site.'}</CardDescription>
         </div>
         { (isAdmin || !isMain) && (

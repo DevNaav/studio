@@ -152,7 +152,7 @@ export function PaymentTab({ siteId, totalSiteExpenses }: PaymentTabProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><IndianRupee />Site Payments</CardTitle>
+            <CardTitle className="flex items-center gap-2"><IndianRupee className="h-5 w-5 shrink-0 text-primary" />Site Payments</CardTitle>
             <CardDescription>Track departmental payments and security deposits for this site.</CardDescription>
           </div>
           <Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Log Payment</Button>

@@ -112,7 +112,7 @@ export function ToolsTab({ siteId, companyId }: ToolsTabProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2"><Wrench />Tools & Equipment</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 shrink-0 text-primary" />Tools & Equipment</CardTitle>
           <CardDescription>Track all tools and small equipment used on this site.</CardDescription>
         </div>
         <Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Log Tool</Button>

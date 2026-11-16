@@ -452,7 +452,7 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
                                   const isLowStock = item.lowStockThreshold !== undefined && item.stored <= item.lowStockThreshold;
                                   return (
                                   <TableRow key={item.key} className={isLowStock ? 'bg-destructive/10' : ''}>
-                                      <TableCell className="font-medium flex items-center gap-2">
+                                      <TableCell className="font-medium"><div className="flex items-center gap-2">
                                           {isLowStock && <AlertTriangle className="h-4 w-4 text-destructive" />}
                                           {getMaterialIcon(item.name)}
                                           {item.name}
@@ -464,7 +464,7 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
                                               Mixed units: {item.mixedUnits.join(', ')} not counted
                                             </span>
                                           )}
-                                      </TableCell>
+                                      </div></TableCell>
                                       <TableCell className="text-center">{item.bought.toLocaleString()} {item.unit}</TableCell>
                                       <TableCell className="text-center">{item.used.toLocaleString()} {item.unit}</TableCell>
                                       <TableCell className="text-center font-bold">{item.stored.toLocaleString()} {item.unit}</TableCell>

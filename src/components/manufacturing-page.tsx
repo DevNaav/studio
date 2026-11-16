@@ -21,7 +21,7 @@ export function ManufacturingPage({ companyId }: ManufacturingPageProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Factory /> Manufacturing & Sales</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Factory className="h-5 w-5 shrink-0 text-primary" /> Manufacturing & Sales</CardTitle>
           <CardDescription>
             Track production activities, material consumption, and sales.
           </CardDescription>

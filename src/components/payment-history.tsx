@@ -97,7 +97,7 @@ export function PaymentHistory({ companyId }: PaymentHistoryProps) {
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
         <div>
-          <CardTitle className="flex items-center gap-2"><CreditCard /> Payment History</CardTitle>
+          <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 shrink-0 text-primary" /> Payment History</CardTitle>
           <CardDescription>View, download or email invoices for all your past payments.</CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={() => emailInvoice(null)} disabled={!!emailing}>

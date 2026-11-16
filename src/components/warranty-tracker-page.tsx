@@ -167,7 +167,7 @@ export function WarrantyTrackerPage({ companyId }: WarrantyTrackerPageProps) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle className="flex items-center gap-2"><ShieldCheck />Warranty Tracker</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 shrink-0 text-primary" />Warranty Tracker</CardTitle>
                         <CardDescription>Monitor warranties for all your construction projects.</CardDescription>
                     </div>
                     <Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" /> Add Warranty</Button>

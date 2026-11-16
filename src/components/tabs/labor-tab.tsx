@@ -473,7 +473,7 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
 
 
   return (
-    <div className="space-y-6 bg-muted/20 -m-8 p-8">
+    <div className="space-y-6">
       <Card className="shadow-sm">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
               <div>

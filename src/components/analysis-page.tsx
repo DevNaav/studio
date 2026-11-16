@@ -19,6 +19,7 @@ import { Button } from './ui/button';
 import jsPDF from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { saleProfit, sumDirectExpenses } from '@/lib/costs';
+import { StatCard } from '@/components/stat-card';
 
 interface AnalysisPageProps {
   companyId: string | null | undefined;
@@ -385,17 +386,6 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
     doc.save(`analysis-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
-  const KpiCard = ({ title, value, icon: Icon }: { title: string, value: string, icon: React.ElementType }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-      </CardContent>
-    </Card>
-  );
 
   if (loading) {
       return (
@@ -409,7 +399,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Analysis Dashboard</CardTitle>
+                <CardTitle>Reports and analysis</CardTitle>
                 <CardDescription>Select a company to view the analysis.</CardDescription>
             </CardHeader>
         </Card>
@@ -420,7 +410,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
     <div className="space-y-6" ref={pageRef}>
       <Card>
         <CardHeader>
-          <CardTitle>Analysis Dashboard</CardTitle>
+          <CardTitle>Reports and analysis</CardTitle>
           <CardDescription>An interactive overview of all your operations.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-4">
@@ -476,15 +466,15 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
         </CardContent>
       </Card>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Total Expenses" value={formatCurrency(kpiData.totalExpenses)} icon={IndianRupee} />
-        <KpiCard title="Total Sales" value={formatCurrency(kpiData.totalSales)} icon={Briefcase} />
-        <KpiCard title="Overall Profit" value={formatCurrency(kpiData.totalProfit)} icon={TrendingUp} />
-        <KpiCard title="Inventory Value" value={formatCurrency(kpiData.inventoryValue)} icon={Warehouse} />
-        <KpiCard title="Active Sites" value={constructionSites.length.toString()} icon={HardHat} />
-        <KpiCard title="Manufacturing Units" value={manufacturingUnits.length.toString()} icon={Factory} />
-        <KpiCard title="Total Machines" value={allMachines.length.toString()} icon={Tractor} />
-        <KpiCard title="Total Tools" value={allTools.reduce((acc, t) => acc + t.quantity, 0).toString()} icon={Wrench} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatCard tone="rose" title="Total Expenses" value={formatCurrency(kpiData.totalExpenses)} icon={IndianRupee} />
+        <StatCard tone="blue" title="Total Sales" value={formatCurrency(kpiData.totalSales)} icon={Briefcase} />
+        <StatCard tone="emerald" title="Overall Profit" value={formatCurrency(kpiData.totalProfit)} icon={TrendingUp} />
+        <StatCard tone="amber" title="Inventory Value" value={formatCurrency(kpiData.inventoryValue)} icon={Warehouse} />
+        <StatCard tone="blue" title="Active Sites" value={constructionSites.length.toString()} icon={HardHat} />
+        <StatCard tone="violet" title="Manufacturing Units" value={manufacturingUnits.length.toString()} icon={Factory} />
+        <StatCard tone="slate" title="Total Machines" value={allMachines.length.toString()} icon={Tractor} />
+        <StatCard tone="slate" title="Total Tools" value={allTools.reduce((acc, t) => acc + t.quantity, 0).toString()} icon={Wrench} />
 
       </div>
 

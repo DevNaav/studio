@@ -119,7 +119,7 @@ export function DocumentationPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><BookText /> Internal Documentation</CardTitle>
+            <CardTitle className="flex items-center gap-2"><BookText className="h-5 w-5 shrink-0 text-primary" /> Internal Documentation</CardTitle>
             <CardDescription>
               {isSuperAdmin ? 'Create and manage documentation for new features and updates.' : 'View documentation for new features and updates.'}
               </CardDescription>

@@ -206,7 +206,7 @@ export function LaborPage({ companyId }: LaborPageProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Global Labor Management</CardTitle>
+                <CardTitle>All workers</CardTitle>
                 <CardDescription>Select a company to view and manage labor.</CardDescription>
             </CardHeader>
         </Card>
@@ -218,7 +218,7 @@ export function LaborPage({ companyId }: LaborPageProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Global Labor Management</CardTitle>
+            <CardTitle>All workers</CardTitle>
             <CardDescription>Add new laborers and assign them to a construction site.</CardDescription>
           </div>
           <div className="flex gap-2">
@@ -259,7 +259,7 @@ export function LaborPage({ companyId }: LaborPageProps) {
                     <TableBody>
                         {filteredLabors.length > 0 ? filteredLabors.map((labor) => (
                             <TableRow key={labor.id}>
-                                <TableCell className="font-medium flex items-center gap-2">
+                                <TableCell className="font-medium"><div className="flex items-center gap-2">
                                   {labor.name}
                                   {labor.idProofUrl && (
                                     <TooltipProvider>
@@ -273,7 +273,7 @@ export function LaborPage({ companyId }: LaborPageProps) {
                                       </Tooltip>
                                     </TooltipProvider>
                                   )}
-                                </TableCell>
+                                </div></TableCell>
                                 <TableCell>{labor.role}</TableCell>
                                 <TableCell>{getSiteName(labor.siteId)}</TableCell>
                                 <TableCell>{renderWage(labor)}</TableCell>

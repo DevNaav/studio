@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 import { computeSiteSpend, saleProfit, sumDirectExpenses } from '@/lib/costs';
 import { siteLaborTotals, workerMoney } from '@/lib/wages';
+import { StatCard } from '@/components/stat-card';
 
 const HumanCharacter = dynamic(() => import('@/components/HumanCharacter'), {
   ssr: false,
@@ -43,32 +44,6 @@ interface DashboardPageProps {
   companyLogoUrl?: string;
   tasksDueToday?: number;
   tasksOverdue?: number;
-}
-
-const KPI_TONES = {
-  blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  violet: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-  emerald: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-} as const;
-
-function KpiCard({ title, value, icon: Icon, description, tone = 'blue', onClick }: {
-  title: string; value: string; icon: React.ElementType; description: string; tone?: keyof typeof KPI_TONES; onClick?: () => void;
-}) {
-    return (
-        <Card className={cn('tw-neon scroll-anim rounded-xl', onClick && 'cursor-pointer')} onClick={onClick}>
-            <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium text-muted-foreground">{title}</p>
-                    <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', KPI_TONES[tone])}>
-                        <Icon className="h-[18px] w-[18px]" />
-                    </div>
-                </div>
-                <p className="mt-2 truncate text-2xl font-bold tracking-tight tabular-nums sm:text-[28px]">{value}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-            </CardContent>
-        </Card>
-    );
 }
 
 /** "Rs. 6.77 L" / "Rs. 1.2 Cr": short Indian money for stat cards. */
@@ -297,10 +272,10 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
 
       {/* Key numbers */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <KpiCard tone="blue" title="Spent on sites" value={shortRs(totalSpent)} icon={IndianRupee} description="All active sites, to date" />
-        <KpiCard tone="amber" title="Owed to workers" value={shortRs(workersOwed)} icon={Wallet} description="Wages earned, not yet paid" onClick={() => setActiveView('labor')} />
-        <KpiCard tone="violet" title="Workforce" value={String(allLabor.length)} icon={Users} description={`${sites.length} ${sites.length === 1 ? 'site' : 'sites'} · ${manufacturingUnits.length} ${manufacturingUnits.length === 1 ? 'unit' : 'units'}`} onClick={() => setActiveView('labor')} />
-        <KpiCard tone="emerald" title="Stock value" value={shortRs(kpiData.inventoryValue)} icon={Warehouse} description="Current materials in stock" onClick={() => setActiveView('warehouse')} />
+        <StatCard tone="blue" title="Spent on sites" value={shortRs(totalSpent)} icon={IndianRupee} description="All active sites, to date" />
+        <StatCard tone="amber" title="Owed to workers" value={shortRs(workersOwed)} icon={Wallet} description="Wages earned, not yet paid" onClick={() => setActiveView('labor')} />
+        <StatCard tone="violet" title="Workforce" value={String(allLabor.length)} icon={Users} description={`${sites.length} ${sites.length === 1 ? 'site' : 'sites'} · ${manufacturingUnits.length} ${manufacturingUnits.length === 1 ? 'unit' : 'units'}`} onClick={() => setActiveView('labor')} />
+        <StatCard tone="emerald" title="Stock value" value={shortRs(kpiData.inventoryValue)} icon={Warehouse} description="Current materials in stock" onClick={() => setActiveView('warehouse')} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

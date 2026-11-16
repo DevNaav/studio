@@ -528,7 +528,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="flex items-center gap-2"><ShoppingCart /> Detailed Sales Log</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5 shrink-0 text-primary" /> Detailed Sales Log</CardTitle>
                     <CardDescription>Record concrete sales and automatically deduct materials from your inventory.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">

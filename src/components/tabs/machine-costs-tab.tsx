@@ -364,7 +364,7 @@ export function MachineCostsTab({ site }: MachineCostsTabProps) {
     <div className="space-y-6">
        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><IndianRupee />Machine Cost Summary</CardTitle>
+            <CardTitle className="flex items-center gap-2"><IndianRupee className="h-5 w-5 shrink-0 text-primary" />Machine Cost Summary</CardTitle>
             <CardDescription>Total costs for all machines assigned to this site.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -536,7 +536,7 @@ export function MachineCostsTab({ site }: MachineCostsTabProps) {
       <Card>
           <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                  <CardTitle className="flex items-center gap-2"><Truck /> Machines On Site</CardTitle>
+                  <CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5 shrink-0 text-primary" /> Machines On Site</CardTitle>
                   <CardDescription>All machines currently assigned to this project. Release them to make them available for other sites.</CardDescription>
               </div>
               <Button onClick={() => handleOpenMachineForm()}><Plus className="mr-2 h-4 w-4" /> Add Machine</Button>
@@ -583,7 +583,7 @@ export function MachineCostsTab({ site }: MachineCostsTabProps) {
         
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Truck /> Rental & EMI Log</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5 shrink-0 text-primary" /> Rental & EMI Log</CardTitle>
           <CardDescription>All rental and EMI costs for machines on this site.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -620,7 +620,7 @@ export function MachineCostsTab({ site }: MachineCostsTabProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Fuel /> Fuel Log</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Fuel className="h-5 w-5 shrink-0 text-primary" /> Fuel Log</CardTitle>
           <CardDescription>All fuel transactions for machines on this site.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -655,7 +655,7 @@ export function MachineCostsTab({ site }: MachineCostsTabProps) {
       
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Wrench /> Maintenance Log</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 shrink-0 text-primary" /> Maintenance Log</CardTitle>
           <CardDescription>All maintenance tasks for machines on this site.</CardDescription>
         </CardHeader>
         <CardContent>

@@ -209,6 +209,13 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
         return expenseMap;
     }, [sites, dashCompany?.laborCostBasis, dashCompany?.foodCostMode, allInventory, allLabor, allWorkLogs, allAttendances, allLaborTransactions, allMachines, allMaintenanceLogs, allFuelLogs, allRentedMaterials, allRentedMaterialAttendances, allMachineAttendances, allTools, allExpenses, today]);
     
+    // Timing mark for speed checks: when the Dashboard first has real cost totals.
+    useEffect(() => {
+        if (siteExpenses.size && Array.from(siteExpenses.values()).some(v => v > 0) && !performance.getEntriesByName('inventra:dashboard-numbers').length) {
+            performance.mark('inventra:dashboard-numbers');
+        }
+    }, [siteExpenses]);
+
     if (sites.length === 0 && manufacturingUnits.length === 0 && !isSuperAdmin) {
         return (
              <div className="flex h-[calc(100vh-10rem)] items-center justify-center">

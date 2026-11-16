@@ -11,6 +11,7 @@ import { deleteUserAccount } from '@/app/actions/delete-user';
 import { uploadFile } from '@/lib/file-upload';
 import { useToast } from '@/hooks/use-toast';
 import { activity, logActivity, setActivityActor } from '@/lib/activity-log';
+import { setSiteScope } from '@/lib/site-scope';
 import { TRIAL_DAYS } from '@/lib/plans';
 
 interface AuthContextType {
@@ -48,6 +49,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   const isSuperAdmin = !!userProfile && userProfile.role === 'SuperAdmin' && !userProfile.companyId;
+
+  // Limit company-wide queries to the user's sites (the database rules enforce the same).
+  useEffect(() => {
+    const seesAllSites = !userProfile || isSuperAdmin || userProfile.role === 'Admin' || userProfile.role === 'Project Manager';
+    setSiteScope(seesAllSites ? null : (userProfile.assignedSites ?? []));
+  }, [userProfile, isSuperAdmin]);
 
   // Tell the activity log who is making changes.
   useEffect(() => {

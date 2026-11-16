@@ -7,7 +7,6 @@
  * to stay well inside Firestore's free read quota.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
 import { AlertTriangle, Bell, CheckCheck, CircleAlert, Info, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { computeAlerts, type AlertInputs, type AppAlert, type AlertTarget } from '@/lib/alerts';
@@ -18,7 +17,7 @@ import type {
 } from '@/lib/types';
 import { computeSiteSpend } from '@/lib/costs';
 import { siteLaborTotals, workerMoney } from '@/lib/wages';
-import { useSite } from '@/context/site-context';
+import { getCompanyDocs, useSite } from '@/context/site-context';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -26,10 +25,8 @@ const REFRESH_AFTER_MS = 5 * 60 * 1000;
 
 type FetchedData = Omit<AlertInputs, 'sites' | 'tasks' | 'today'>;
 
-async function fetchCompany<T>(name: string, companyId: string): Promise<T[]> {
-  const snap = await getDocs(query(collection(db, name), where('companyId', '==', companyId)));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as T).filter((d: any) => !d.isDeleted);
-}
+/** A company's records, limited to the user's sites when they can't see every site. */
+const fetchCompany = <T,>(name: string, companyId: string) => getCompanyDocs<T>(name, companyId);
 
 /**
  * Money spent per budgeted site, using the same calculation as the site's Summary tab.

@@ -2,10 +2,9 @@
 
 /** Pick a date and download or share that day's site report as a PDF. */
 import { useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
 import { CalendarDays, Download, Loader2, Share2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { getSubCollection, useSite } from '@/context/site-context';
+import { getCompanyDocs, getSubCollection, useSite } from '@/context/site-context';
 import { useAuth } from '@/context/auth-context';
 import { buildDailyReport, buildDailyReportPdf, type DailyReport } from '@/lib/daily-report';
 import { canShareFiles, sharePdf } from '@/lib/pdf-share';
@@ -17,10 +16,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-async function companyDocs<T>(name: string, companyId: string): Promise<T[]> {
-  const snap = await getDocs(query(collection(db, name), where('companyId', '==', companyId)));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as T).filter((d: any) => !d.isDeleted);
-}
+/** A company's records, limited to the user's sites when they can't see every site. */
+const companyDocs = <T,>(name: string, companyId: string) => getCompanyDocs<T>(name, companyId);
 
 async function loadReport(site: Site, date: string): Promise<DailyReport> {
   const c = site.companyId;

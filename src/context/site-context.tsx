@@ -21,6 +21,9 @@ import { activity, logActivity } from '@/lib/activity-log';
 import { makeInvoiceNumber } from '@/lib/invoice-pdf';
 
 
+export { SITE_SCOPED_COLLECTIONS, setSiteScope, companyQueries, getCompanyDocs } from '@/lib/site-scope';
+import { companyQueries } from '@/lib/site-scope';
+
 // Standalone data fetching functions
 export const onSubCollectionSnapshot = <T extends { isDeleted?: boolean }>(collectionName: string, companyId: string | null | undefined, siteId: string, callback: (data: T[]) => void) => {
     if (!companyId || !siteId) {
@@ -53,7 +56,17 @@ export const onGlobalCollectionSnapshot = <T extends { isDeleted?: boolean }>(co
                 finalCallback([]);
                 return () => {};
             }
-            q = query(collection(db, collectionName), where("companyId", "==", finalCompanyId));
+            const queries = companyQueries(collectionName, finalCompanyId);
+            if (queries.length > 1) {
+                // More than 30 sites: listen to each part and merge the results.
+                const parts: T[][] = queries.map(() => []);
+                const unsubs = queries.map((part, i) => onSnapshot(part, (snapshot) => {
+                    parts[i] = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as unknown as T)).filter(item => !item.isDeleted);
+                    finalCallback(parts.flat());
+                }, (error) => console.error(`Error fetching ${collectionName}:`, error)));
+                return () => unsubs.forEach(u => u());
+            }
+            q = queries[0];
         } else {
             q = collectionName;
         }
@@ -221,7 +234,7 @@ export const addMaintenanceLogDb = async (companyId: string, machineId: string, 
 
 export const markAttendance = async (companyId: string, siteId: string, laborId: string, date: string, status: any, batch?: any) => {
     if (!companyId) return;
-    const q = query(collection(db, "attendances"), where("companyId", "==", companyId), where("laborId", "==", laborId), where("date", "==", date));
+    const q = query(collection(db, "attendances"), where("companyId", "==", companyId), where("siteId", "==", siteId), where("laborId", "==", laborId), where("date", "==", date));
     const snapshot = await getDocs(q);
     const useBatch = batch || writeBatch(db);
 
@@ -253,7 +266,7 @@ export const markMachineAttendance = async (companyId: string, machineId: string
 
 export const markRentedMaterialAttendance = async (companyId: string, siteId: string, rentedMaterialId: string, date: string, status: RentedMaterialAttendanceStatus) => {
     if (!companyId) return;
-    const q = query(collection(db, "rented_material_attendances"), where("companyId", "==", companyId), where("rentedMaterialId", "==", rentedMaterialId), where("date", "==", date));
+    const q = query(collection(db, "rented_material_attendances"), where("companyId", "==", companyId), where("siteId", "==", siteId), where("rentedMaterialId", "==", rentedMaterialId), where("date", "==", date));
     const snapshot = await getDocs(q);
     if (snapshot.empty) {
       await addDocToGlobalCollection('rented_material_attendances', companyId, { siteId, rentedMaterialId, date, status });

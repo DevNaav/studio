@@ -37,6 +37,33 @@ service cloud.firestore {
     function isAdminOf(companyId) {
       return isMemberOf(companyId) && profile().role == 'Admin';
     }
+    // Site access: Admins and Project Managers (and SuperAdmins) see every site. Other roles
+    // only see the sites listed in their profile's assignedSites, plus the warehouse ('main')
+    // and company-level records (siteId '').
+    function seesAllSites() {
+      return isSuperAdmin() || (hasProfile() && profile().role in ['Admin', 'Project Manager']);
+    }
+    function allowedSites() {
+      return profile().get('assignedSites', []).concat(['', 'main']);
+    }
+    // Collections whose records belong to one site (keep in sync with src/lib/site-scope.ts).
+    function isSiteScoped(name) {
+      return name in ['inventory', 'labors', 'expenses', 'sales', 'tools', 'rented_materials',
+        'rented_material_attendances', 'labor_transactions', 'documents', 'work_logs', 'warranties',
+        'defect_liabilities', 'attendances', 'tasks', 'thefts', 'fuel_logs', 'maintenance_logs',
+        'manufacturing_expenses', 'manufacturing_inventory', 'manufacturing_labor_transactions',
+        'bbs', 'orders', 'site_payments'];
+    }
+    // Reading: the record's siteId must be one of the user's sites. No default value here on
+    // purpose: for a list query that doesn't filter by siteId, a default would let the check
+    // pass for every record (found by tests-emulator/site-access.test.ts).
+    function canReadSite(name) {
+      return !isSiteScoped(name) || seesAllSites() || resource.data.siteId in allowedSites();
+    }
+    // Writing a single record: a missing siteId counts as company-level ('').
+    function canWriteSite(name, data) {
+      return !isSiteScoped(name) || seesAllSites() || data.get('siteId', '') in allowedSites();
+    }
     function changed() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
@@ -164,15 +191,24 @@ service cloud.firestore {
       }
 
       allow read: if isGeneric() && (
-        isSuperAdmin() || isMemberOf(resource.data.get('companyId', null))
+        isSuperAdmin() || (
+          isMemberOf(resource.data.get('companyId', null))
+          && canReadSite(collection)
+        )
       );
       allow create: if isGeneric() && (
-        isSuperAdmin() || isMemberOf(request.resource.data.get('companyId', null))
+        isSuperAdmin() || (
+          isMemberOf(request.resource.data.get('companyId', null))
+          && canWriteSite(collection, request.resource.data)
+        )
       );
       allow update: if isGeneric() && (
         isSuperAdmin() || (
           isMemberOf(resource.data.get('companyId', null))
           && request.resource.data.get('companyId', null) == resource.data.get('companyId', null)
+          // Can't touch another site's record, or move a record into a site you can't see.
+          && canWriteSite(collection, resource.data)
+          && canWriteSite(collection, request.resource.data)
         )
       );
       // Permanent deletes are admin-only; the app normally "deletes" by setting isDeleted (an update).

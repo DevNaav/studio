@@ -14,56 +14,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { formatCurrency } from '@/lib/utils';
-import { onGlobalCollectionSnapshot } from '@/context/site-context';
+import { PLANS, planById, priceFor } from '@/lib/plans';
 
 interface SubscriptionStatusPageProps {
   company: Company | undefined;
   onSelectPlan: (planId: PlanId, billingCycle: BillingCycle) => void;
 }
 
-const defaultPlans: Plan[] = [
-  {
-    id: 'basic_default',
-    name: 'basic',
-    priceMonthly: 2999,
-    priceAnnually: 29999,
-    features: ['Up to 5 sites', 'Up to 10 users', 'Core feature access', 'Email support'],
-  },
-  {
-    id: 'premium_default',
-    name: 'premium',
-    priceMonthly: 5999,
-    priceAnnually: 59999,
-    features: ['Unlimited sites', 'Unlimited users', 'All features included', 'AI Assistant', 'Priority support'],
-  },
-];
-
-
 export function SubscriptionStatusPage({ company, onSelectPlan }: SubscriptionStatusPageProps) {
-    const [isLoading, setIsLoading] = useState(true);
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('annually');
-    const [plans, setPlans] = useState<Plan[]>(defaultPlans);
-    const { toast } = useToast();
-
-    useEffect(() => {
-        setIsLoading(!company);
-        // Fetch dynamic plans and merge with defaults
-        const unsub = onGlobalCollectionSnapshot<Plan>('plans', null, (fetchedPlans) => {
-            const combinedPlans = [...defaultPlans];
-            fetchedPlans.forEach(fetchedPlan => {
-                const existingIndex = combinedPlans.findIndex(p => p.name === fetchedPlan.name);
-                if (existingIndex > -1) {
-                    // Replace default with fetched if name matches
-                    combinedPlans[existingIndex] = fetchedPlan;
-                } else {
-                    combinedPlans.push(fetchedPlan);
-                }
-            });
-            setPlans(combinedPlans);
-            setIsLoading(false);
-        });
-        return () => unsub();
-    }, [company]);
+    const isLoading = false;
 
     if (isLoading) {
       return (
@@ -96,8 +56,8 @@ export function SubscriptionStatusPage({ company, onSelectPlan }: SubscriptionSt
 
     const status = getStatus(company);
     
-    const currentPlanId = status === 'Trial' ? 'premium' : company.planId.split('-')[0];
-    const currentPlanDetails = plans.find(p => p.name === currentPlanId);
+    const currentPlanId = status === 'Trial' ? 'premium' : company.planId?.split('-')[0];
+    const currentPlan = planById(currentPlanId);
 
 
     const getStatusVariant = (status: SubscriptionStatus) => {
@@ -135,7 +95,7 @@ export function SubscriptionStatusPage({ company, onSelectPlan }: SubscriptionSt
                 <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Current Plan</h3>
-                        <p className="text-3xl font-bold capitalize">{currentPlanId} Plan</p>
+                        <p className="text-3xl font-bold">{currentPlan?.name ?? currentPlanId} Plan{status === 'Trial' ? ' (trial)' : ''}</p>
 
                         <h3 className="text-lg font-semibold pt-4">Status</h3>
                         <Badge variant={getStatusVariant(status)} className="text-base px-4 py-1">{status}</Badge>
@@ -162,7 +122,7 @@ export function SubscriptionStatusPage({ company, onSelectPlan }: SubscriptionSt
                                     <CardTitle>Welcome to Your Trial!</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="mb-4">You are currently on a free trial of the Premium Plan. Enjoy all features until your trial expires. Choose a plan below to start your subscription.</p>
+                                    <p className="mb-4">You are on a free trial with everything in the Business plan. Enjoy all features until your trial expires. Choose a plan below to start your subscription.</p>
                                 </CardContent>
                             </Card>
                         )}
@@ -181,19 +141,20 @@ export function SubscriptionStatusPage({ company, onSelectPlan }: SubscriptionSt
                 onCheckedChange={(checked) => setBillingCycle(checked ? 'annually' : 'monthly')}
             />
             <Label htmlFor="billing-cycle" className={billingCycle === 'annually' ? 'font-bold' : 'text-muted-foreground'}>
-                Annually (Save over 15%)
+                Annually (2 months free)
             </Label>
         </div>
         
-        <div className="grid md:grid-cols-2 gap-8 pt-8">
-            {plans.map((plan) => (
-              <Card key={plan.id} className={`flex flex-col ${plan.name === currentPlanId && status !== 'Canceled' && status !== 'Past Due' ? 'border-primary' : ''}`}>
+        <div className="grid gap-6 pt-8 md:grid-cols-3">
+            {PLANS.map((plan) => (
+              <Card key={plan.id} className={`flex flex-col ${plan.id === currentPlanId && status !== 'Canceled' && status !== 'Past Due' ? 'border-primary' : ''}`}>
                 <CardHeader>
-                  <CardTitle className="capitalize">{plan.name}</CardTitle>
-                  <CardDescription className="flex items-baseline">
-                    <span className="text-3xl font-bold">{formatCurrency(billingCycle === 'annually' ? plan.priceAnnually : plan.priceMonthly)}</span>
-                    <span className="text-muted-foreground">/{billingCycle === 'annually' ? 'year' : 'month'}</span>
+                  <CardTitle>{plan.name}</CardTitle>
+                  <CardDescription className="flex flex-wrap items-baseline gap-x-1">
+                    <span className="text-3xl font-bold text-foreground">{formatCurrency(priceFor(plan, billingCycle))}</span>
+                    <span className="text-muted-foreground">/{billingCycle === 'annually' ? 'year' : 'month'} + GST</span>
                   </CardDescription>
+                  <p className="text-sm text-muted-foreground">{plan.blurb}</p>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-4">
                   <ul className="space-y-2">
@@ -206,21 +167,24 @@ export function SubscriptionStatusPage({ company, onSelectPlan }: SubscriptionSt
                   </ul>
                 </CardContent>
                  <CardContent>
-                    {status === 'Active' && plan.name === currentPlanId && company.billingCycle === billingCycle ? (
+                    {status === 'Active' && plan.id === currentPlanId && company.billingCycle === billingCycle ? (
                          <Button className="w-full" disabled>Your Current Plan</Button>
                     ) : (
                          <Button 
-                            variant={plan.name === currentPlanId ? 'default' : 'outline'}
+                            variant={plan.id === currentPlanId ? 'default' : 'outline'}
                             className="w-full"
-                            onClick={() => onSelectPlan(plan.name, billingCycle)}
+                            onClick={() => onSelectPlan(plan.id, billingCycle)}
                         >
-                           {plan.name === currentPlanId ? 'Renew Plan' : (plan.name === 'premium' ? 'Upgrade to Premium' : 'Select Basic Plan')}
+                           {plan.id === currentPlanId && status !== 'Trial' ? 'Renew Plan' : `Choose ${plan.name}`}
                         </Button>
                     )}
                  </CardContent>
               </Card>
             ))}
         </div>
+        <p className="text-center text-sm text-muted-foreground">
+            Prices exclude 18% GST. Need more than 50 users? <a href="/contact" className="font-medium underline underline-offset-4">Contact us about Enterprise</a>.
+        </p>
         <PaymentHistory companyId={company.id} />
     </div>
   );

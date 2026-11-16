@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { onGlobalCollectionSnapshot, getSubCollection } from '@/context/site-context';
+import { effectivePlan } from '@/lib/plans';
 
 interface AddSiteDialogProps {
   open: boolean;
@@ -38,9 +39,15 @@ interface AddSiteDialogProps {
 }
 
 export function AddSiteDialog({ open, onOpenChange, site }: AddSiteDialogProps) {
-  const { addSite, updateSite, sites } = useSite();
+  const { addSite, updateSite, sites, allCompanies } = useSite();
   const { toast } = useToast();
-  const { userProfile } = useAuth();
+  const { userProfile, isSuperAdmin } = useAuth();
+
+  // Plan limit on active sites (sites + manufacturing units that aren't completed).
+  const company = allCompanies.find(c => c.id === userProfile?.companyId);
+  const plan = effectivePlan(company);
+  const activeSiteCount = sites.filter(s => s.companyId === userProfile?.companyId && !s.isDeleted && s.status !== 'Completed').length;
+  const siteLimitReached = !site && !isSuperAdmin && plan.maxSites !== null && activeSiteCount >= plan.maxSites;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [allMachineNames, setAllMachineNames] = useState<string[]>([]);
   
@@ -107,6 +114,10 @@ export function AddSiteDialog({ open, onOpenChange, site }: AddSiteDialogProps) 
   }, [site, open, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (siteLimitReached) {
+      toast({ variant: 'destructive', title: 'Site limit reached', description: `The ${plan.name} plan allows ${plan.maxSites} active site${plan.maxSites === 1 ? '' : 's'}. Upgrade your plan or mark a finished site as completed.` });
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (site) {
@@ -133,6 +144,11 @@ export function AddSiteDialog({ open, onOpenChange, site }: AddSiteDialogProps) 
         <DialogTitle>{site ? 'Edit Project' : 'Create New Project'}</DialogTitle>
         <DialogDescription>
             {site ? 'Update the details for this project.' : 'Enter the details for the new construction site or manufacturing unit.'}
+            {siteLimitReached && (
+              <span className="mt-2 block rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-amber-700 dark:text-amber-400">
+                Your {plan.name} plan allows {plan.maxSites} active site{plan.maxSites === 1 ? '' : 's'}, and you have {activeSiteCount}. Upgrade under Subscription, or mark a finished site as completed.
+              </span>
+            )}
         </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -224,7 +240,7 @@ export function AddSiteDialog({ open, onOpenChange, site }: AddSiteDialogProps) 
             </fieldset>
             <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || siteLimitReached}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {site ? 'Save Changes' : 'Create Project'}
             </Button>

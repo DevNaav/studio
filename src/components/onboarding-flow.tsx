@@ -21,6 +21,7 @@ import { Separator } from './ui/separator';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { BillingCycle, PlanId } from '@/lib/types';
+import { PLANS, TRIAL_DAYS, inr } from '@/lib/plans';
 
 const paymentSchema = z.object({
   cardName: z.string().min(2, 'Name on card is required.'),
@@ -29,22 +30,14 @@ const paymentSchema = z.object({
   cvc: z.string().regex(/^\d{3,4}$/, 'CVC must be 3 or 4 digits.'),
 });
 
-const plans = [
-  {
-    id: 'basic' as const,
-    name: 'Basic Plan',
-    priceMonthly: '₹2,999/month',
-    priceAnnually: '₹29,999/year',
-    features: ['Up to 5 sites', 'Up to 10 users', 'Core feature access', 'Email support'],
-  },
-  {
-    id: 'premium' as const,
-    name: 'Premium Plan',
-    priceMonthly: '₹5,999/month',
-    priceAnnually: '₹59,999/year',
-    features: ['Unlimited sites', 'Unlimited users', 'All features included', 'AI Assistant', 'Priority support'],
-  },
-];
+// Plans and prices come from the shared list in src/lib/plans.ts.
+const plans = PLANS.map(p => ({
+  id: p.id,
+  name: `${p.name} Plan`,
+  priceMonthly: `${inr(p.monthly)}/month + GST`,
+  priceAnnually: `${inr(p.annually)}/year + GST`,
+  features: p.features,
+}));
 
 
 interface OnboardingFlowProps {
@@ -85,9 +78,9 @@ export function OnboardingFlow({ companyName, onComplete }: OnboardingFlowProps)
             </DialogHeader>
             <div className="text-center p-6">
                 <PartyPopper className="h-16 w-16 mx-auto text-primary mb-4" />
-                <h3 className="font-semibold text-lg mb-2">You're Starting on a 2-Month Premium Trial!</h3>
+                <h3 className="font-semibold text-lg mb-2">You're Starting on a {TRIAL_DAYS}-Day Free Trial!</h3>
                 <p className="text-muted-foreground">
-                    For the next 2 months, you'll have complete access to all our premium features, completely free.
+                    For the next {TRIAL_DAYS} days you get everything in the Business plan, completely free.
                     After the trial, you can choose to subscribe to continue using the service. No charges will be made until then.
                 </p>
             </div>
@@ -102,7 +95,7 @@ export function OnboardingFlow({ companyName, onComplete }: OnboardingFlowProps)
             <DialogHeader>
               <DialogTitle>Our Plans for the Future</DialogTitle>
               <DialogDescription>
-                Here's a look at our plans for when your trial ends. You are currently on the Premium Plan.
+                Here's a look at our plans for when your trial ends. Your trial includes everything in Business.
               </DialogDescription>
             </DialogHeader>
             <div className="flex justify-center items-center gap-4 py-4">
@@ -115,10 +108,10 @@ export function OnboardingFlow({ companyName, onComplete }: OnboardingFlowProps)
                     onCheckedChange={(checked) => setBillingCycle(checked ? 'annually' : 'monthly')}
                 />
                 <Label htmlFor="billing-cycle" className={billingCycle === 'annually' ? 'font-bold' : 'text-muted-foreground'}>
-                    Annually (Save over 15%)
+                    Annually (2 months free)
                 </Label>
             </div>
-            <div className="grid md:grid-cols-2 gap-4 py-4">
+            <div className="grid gap-4 py-4 md:grid-cols-3">
               {plans.map((plan) => (
                 <Card key={plan.id} className={`flex flex-col cursor-pointer ${plan.id === selectedPlan ? 'border-primary ring-2 ring-primary' : ''}`} onClick={() => setSelectedPlan(plan.id)}>
                   <CardHeader>

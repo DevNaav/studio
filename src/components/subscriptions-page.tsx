@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { addDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
+import { PLANS, planById } from '@/lib/plans';
 
 const planFormSchema = z.object({
   name: z.enum(planIds),
@@ -34,22 +35,14 @@ const planFormSchema = z.object({
   features: z.array(z.object({ value: z.string().min(1, "Feature cannot be empty.") })).min(1, "At least one feature is required."),
 });
 
-const defaultPlans: Plan[] = [
-  {
-    id: 'basic_default',
-    name: 'basic',
-    priceMonthly: 2999,
-    priceAnnually: 29999,
-    features: ['Up to 5 sites', 'Up to 10 users', 'Core feature access', 'Email support'],
-  },
-  {
-    id: 'premium_default',
-    name: 'premium',
-    priceMonthly: 5999,
-    priceAnnually: 59999,
-    features: ['Unlimited sites', 'Unlimited users', 'All features included', 'AI Assistant', 'Priority support'],
-  },
-];
+// The real price list lives in src/lib/plans.ts; customers' screens and payments read it.
+const defaultPlans: Plan[] = PLANS.map(p => ({
+  id: p.id,
+  name: p.id,
+  priceMonthly: p.monthly,
+  priceAnnually: p.annually,
+  features: p.features,
+}));
 
 interface SubscriptionsPageProps {
   allCompanies: Company[];
@@ -75,27 +68,7 @@ export function SubscriptionsPage({ allCompanies }: SubscriptionsPageProps) {
     name: "features"
   });
 
-  useEffect(() => {
-    // Plans are global (not tied to a company), so read the collection directly.
-    const unsub = onSnapshot(collection(db, 'plans'), (snapshot) => {
-      const fetchedPlans = snapshot.docs
-        .map(d => ({ id: d.id, ...d.data() } as Plan & { isDeleted?: boolean }))
-        .filter(p => !p.isDeleted);
-      const combinedPlans = [...defaultPlans];
-      const fetchedPlanNames = new Set(fetchedPlans.map(p => p.name));
-
-      fetchedPlans.forEach(fetchedPlan => {
-        const existingIndex = combinedPlans.findIndex(p => p.name === fetchedPlan.name);
-        if (existingIndex > -1) {
-            combinedPlans[existingIndex] = fetchedPlan;
-        } else {
-            combinedPlans.push(fetchedPlan);
-        }
-      });
-      setPlans(combinedPlans);
-    });
-    return () => unsub();
-  }, []);
+  // Plans stored in the database are no longer used for prices (see src/lib/plans.ts).
 
   useEffect(() => {
     if (isPlanDialogOpen) {
@@ -193,11 +166,8 @@ export function SubscriptionsPage({ allCompanies }: SubscriptionsPageProps) {
               <CardTitle className="flex items-center gap-2">
                 <Crown /> Subscription Plan Management
               </CardTitle>
-              <CardDescription>Create and manage subscription tiers for your customers.</CardDescription>
+              <CardDescription>The plans and prices customers see (excluding GST). To change them, edit src/lib/plans.ts and redeploy.</CardDescription>
             </div>
-            <Button onClick={() => { setSelectedPlan(null); setIsPlanDialogOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" /> Create Plan
-            </Button>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center items-center gap-4">
@@ -210,22 +180,14 @@ export function SubscriptionsPage({ allCompanies }: SubscriptionsPageProps) {
                     onCheckedChange={(checked) => setBillingCycle(checked ? 'annually' : 'monthly')}
                 />
                 <Label htmlFor="billing-cycle" className={billingCycle === 'annually' ? 'font-bold' : 'text-muted-foreground'}>
-                    Annually (Save over 15%)
+                    Annually (2 months free)
                 </Label>
             </div>
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid gap-6 md:grid-cols-3">
                 {plans.map((plan) => (
                 <Card key={plan.id} className="flex flex-col relative">
-                    <div className="absolute top-2 right-2 flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSelectedPlan(plan); setIsPlanDialogOpen(true); }}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSelectedPlan(plan); setIsDeletePlanDialogOpen(true); }}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
                     <CardHeader>
-                    <CardTitle className="capitalize">{plan.name}</CardTitle>
+                    <CardTitle>{planById(plan.name)?.name ?? plan.name}</CardTitle>
                     <CardDescription className="flex items-baseline">
                         <span className="text-3xl font-bold">{formatCurrency(billingCycle === 'annually' ? plan.priceAnnually : plan.priceMonthly)}</span>
                         <span className="text-muted-foreground">/{billingCycle === 'annually' ? 'year' : 'month'}</span>
@@ -312,7 +274,7 @@ export function SubscriptionsPage({ allCompanies }: SubscriptionsPageProps) {
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select Plan Type" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {planIds.map(id => <SelectItem key={id} value={id} className="capitalize">{id}</SelectItem>)}
+                      {planIds.map(id => <SelectItem key={id} value={id}>{planById(id)?.name ?? id}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 <FormMessage /></FormItem>

@@ -31,8 +31,8 @@ export const subscriptionStatuses: [SubscriptionStatus, ...SubscriptionStatus[]]
 
 export type BillingCycle = 'monthly' | 'annually';
 
-export type PlanId = 'basic' | 'premium';
-export const planIds: [PlanId, ...PlanId[]] = ['basic', 'premium'];
+export type PlanId = 'starter' | 'basic' | 'premium';
+export const planIds: [PlanId, ...PlanId[]] = ['starter', 'basic', 'premium'];
 export type FullPlanId = `${PlanId}-${BillingCycle}`;
 
 export interface Plan {
@@ -65,7 +65,9 @@ export interface Payment {
   id: string;
   companyId: string;
   planId: FullPlanId;
-  amount: number;
+  amount: number;        // total charged, including GST
+  baseAmount?: number;   // price before GST
+  gstAmount?: number;
   paymentDate: string;
   isDeleted?: boolean;
 }

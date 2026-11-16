@@ -14,16 +14,17 @@ import { useToast } from '@/hooks/use-toast';
 import type jsPDF from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { formatCurrency } from '@/lib/utils';
+import { planById } from '@/lib/plans';
 
 interface PaymentHistoryProps {
   companyId: string;
 }
 
-const plans: { [key in FullPlanId]: { name: string } } = {
-  'basic-monthly': { name: 'Basic Plan (Monthly)' },
-  'basic-annually': { name: 'Basic Plan (Annually)' },
-  'premium-monthly': { name: 'Premium Plan (Monthly)' },
-  'premium-annually': { name: 'Premium Plan (Annually)' },
+/** "basic-annually" -> "Growth Plan (Annually)". Names come from the shared price list. */
+const planLabel = (fullPlanId: FullPlanId | string) => {
+  const [id, cycle] = String(fullPlanId).split('-');
+  const name = planById(id)?.name ?? id;
+  return `${name} Plan (${cycle === 'annually' ? 'Annually' : 'Monthly'})`;
 };
 
 export function PaymentHistory({ companyId }: PaymentHistoryProps) {
@@ -58,7 +59,7 @@ export function PaymentHistory({ companyId }: PaymentHistoryProps) {
   const handleDownloadInvoice = async (payment: Payment) => {
     const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF();
-    const planDetails = plans[payment.planId];
+    const planDetails = { name: planLabel(payment.planId) };
 
     doc.setFontSize(22);
     doc.text('Invoice', 105, 20, { align: 'center' });

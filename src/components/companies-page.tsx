@@ -32,9 +32,10 @@ import { Loader2, Plus, Trash2, Edit, Lock } from 'lucide-react';
 import { useAuth } from '../context/auth-context';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from './ui/table';
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
-import { addMonths } from 'date-fns';
+import { addDays } from 'date-fns';
 import { Checkbox } from './ui/checkbox';
 import { Switch } from './ui/switch';
+import { TRIAL_DAYS } from '@/lib/plans';
 
 
 const formSchema = z.object({
@@ -89,7 +90,7 @@ export function CompaniesPage({ allUsers }: CompaniesPageProps) {
     setIsSubmitting(true);
     try {
       const now = new Date();
-      const trialEndDate = addMonths(now, 2);
+      const trialEndDate = addDays(now, TRIAL_DAYS);
 
       await addDoc(collection(db, 'companies'), {
         name: values.name,
@@ -101,7 +102,7 @@ export function CompaniesPage({ allUsers }: CompaniesPageProps) {
         subscriptionEndDate: trialEndDate.toISOString(),
         enableOrderMaterials: true,
       });
-      toast({ title: 'Company Created', description: `${values.name} has been created and is on a 2-month trial.` });
+      toast({ title: 'Company Created', description: `${values.name} has been created and is on a ${TRIAL_DAYS}-day trial.` });
       form.reset();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -143,7 +144,7 @@ export function CompaniesPage({ allUsers }: CompaniesPageProps) {
         <CardHeader>
           <CardTitle>Company Management</CardTitle>
           <CardDescription>
-            Add new companies here. The company owner will be set to the current super-admin. An admin user for that company should be created separately. New companies start on a 2-month free trial.
+            Add new companies here. The company owner will be set to the current super-admin. An admin user for that company should be created separately. New companies start on a 30-day free trial.
           </CardDescription>
         </CardHeader>
         <CardContent>

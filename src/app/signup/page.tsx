@@ -45,7 +45,7 @@ type SignUpValues = z.infer<typeof signUpSchema>;
 type Field = 'name' | 'companyName' | 'email' | 'mobileNumber' | 'password';
 
 const FEATURES = [
-  { icon: Gift, label: '2-month free trial' },
+  { icon: Gift, label: '30-day free trial' },
   { icon: Users, label: 'Invite your team' },
   { icon: Sparkles, label: 'AI assistant included' },
 ];
@@ -143,7 +143,7 @@ export default function SignUpPage() {
       subline="Create your company workspace in under a minute. No card needed for the free trial."
       features={FEATURES}
       title="Create your account"
-      description="Start your 2-month free trial."
+      description="Start your 30-day free trial."
       shakeKey={shakeKey}
     >
       <Form {...form}>

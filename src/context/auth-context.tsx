@@ -6,11 +6,12 @@ import { auth, db, getProvisioningAuth } from '@/lib/firebase';
 import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, ConfirmationResult, verifyBeforeUpdateEmail, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc, query, where, addDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { UserProfile, UserRole } from '@/lib/types';
-import { addMonths } from 'date-fns';
+import { addDays } from 'date-fns';
 import { deleteUserAccount } from '@/app/actions/delete-user';
 import { uploadFile } from '@/lib/file-upload';
 import { useToast } from '@/hooks/use-toast';
 import { activity, logActivity, setActivityActor } from '@/lib/activity-log';
+import { TRIAL_DAYS } from '@/lib/plans';
 
 interface AuthContextType {
   user: User | null;
@@ -165,7 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           planId: 'premium-annually',
           billingCycle: 'annually',
           subscriptionStatus: 'Trial',
-          subscriptionEndDate: addMonths(now, 2).toISOString(),
+          subscriptionEndDate: addDays(now, TRIAL_DAYS).toISOString(),
           enableOrderMaterials: true,
         });
         companyId = companyDocRef.id;

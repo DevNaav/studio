@@ -92,7 +92,7 @@ const MODULES = [
 ];
 
 const STEPS = [
-  { icon: Rocket, title: 'Create your workspace', text: 'Sign up with your company name — your 2-month free trial starts instantly.' },
+  { icon: Rocket, title: 'Create your workspace', text: 'Sign up with your company name — your 30-day free trial starts instantly.' },
   { icon: Building2, title: 'Add sites & your team', text: 'Set up construction sites or manufacturing units and invite managers, engineers and accountants.' },
   { icon: ClipboardList, title: 'Track everything daily', text: 'Log attendance, materials, machines and expenses — dashboards and reports update live.' },
 ];
@@ -106,9 +106,9 @@ const AI_FEATURES = [
 const BUILT_FOR = ['Construction companies', 'Civil contractors', 'Manufacturing units', 'Precast & RMC plants', 'Warehouses', 'Equipment rental'];
 
 const FAQS = [
-  { q: 'Is there a free trial?', a: 'Yes. Every new company gets a 2-month free trial with all Premium features, including the AI Assistant.' },
+  { q: 'Is there a free trial?', a: 'Yes. Every new company gets a 30-day free trial with everything in the Business plan, including the AI Assistant. No card needed.' },
   { q: 'Can I manage both construction sites and manufacturing units?', a: 'Yes. Inventra handles construction sites and manufacturing units in the same workspace, each with its own labour, inventory, machines, expenses and reports.' },
-  { q: 'Can my whole team use it?', a: 'Yes. Invite team members, give them roles and assign them to specific sites. The Basic plan includes up to 10 users; Premium is unlimited.' },
+  { q: 'Can my whole team use it?', a: 'Yes. Invite team members, give them roles and assign them to specific sites. Starter includes 3 users, Growth 10 and Business 50. Need more? Ask us about Enterprise.' },
   { q: 'Does it work on mobile?', a: 'Yes. Inventra runs in any modern browser, so site managers can use it on their phones on site.' },
   { q: 'Is my data secure?', a: 'Each company’s data is isolated by strict database security rules, sign-in is handled by Firebase Authentication, and uploaded files are only reachable through signed links.' },
   { q: 'What does the AI actually do?', a: 'The AI Assistant answers questions about using Inventra, uploaded documents get an automatic summary, and the Threat Modeler lists risks for the setup you describe.' },
@@ -227,14 +227,14 @@ export default function InventraLanding() {
                 onFocus={celebrate}
                 className="group inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-purple-600 px-7 font-semibold text-white shadow-xl shadow-sky-500/25 transition hover:brightness-110 sm:w-auto"
               >
-                Start 2-month free trial <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                Start 30-day free trial <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
               <a href="#how" className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-ink/5 px-7 font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-ink/10 sm:w-auto">
                 See how it works
               </a>
             </div>
             <div className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-700 delay-500 mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-ink/55 lg:justify-start">
-              {['2-month free trial', 'Set up in minutes', 'Works on phone & desktop'].map((t) => (
+              {['30-day free trial', 'Set up in minutes', 'Works on phone & desktop'].map((t) => (
                 <span key={t} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> {t}</span>
               ))}
             </div>
@@ -384,7 +384,7 @@ export default function InventraLanding() {
 
         {/* Pricing */}
         <section id="pricing" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-20 sm:px-6">
-          <SectionHeading eyebrow="Pricing" title={<>Simple plans, <GradientText>no surprises</GradientText></>} subtitle="Start free for two months. Pick a plan when you’re ready." />
+          <SectionHeading eyebrow="Pricing" title={<>Simple plans, <GradientText>no surprises</GradientText></>} subtitle="Start free for 30 days. Pick a plan when you’re ready." />
           <Reveal><Pricing /></Reveal>
         </section>
 
@@ -457,7 +457,7 @@ export default function InventraLanding() {
             <p className="relative mx-auto mt-4 max-w-xl text-white/80">{content.ctaSubtitle}</p>
             <div className="relative mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/signup" onMouseEnter={celebrate} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-7 font-semibold text-slate-900 transition hover:bg-ink/90">
-                Start 2-month free trial <ArrowRight className="h-4 w-4" />
+                Start 30-day free trial <ArrowRight className="h-4 w-4" />
               </Link>
               <Link href="/contact" className="inline-flex h-12 items-center justify-center rounded-xl px-7 font-semibold text-white ring-1 ring-white/40 transition hover:bg-white/10">
                 Talk to us

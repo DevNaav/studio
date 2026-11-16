@@ -27,6 +27,7 @@ import { RoleManagementDialog } from '../role-management-dialog';
 import { addDocWithSiteId, updateDocWithId, softDeleteDocWithId } from '@/context/site-context';
 import { Switch } from '../ui/switch';
 import { logActivity } from '@/lib/activity-log';
+import { effectivePlan } from '@/lib/plans';
 
 interface UserRightsTabProps {
     companyId: string | null | undefined;
@@ -225,8 +226,9 @@ export function UserRightsTab({ companyId, company }: UserRightsTabProps) {
   };
   
   const displayedUsers = users;
-  const onBasicPlan = company?.planId.startsWith('basic') && company.subscriptionStatus === 'Active';
-  const userLimitReached = onBasicPlan && users.length >= 10;
+  // Team size limit from the shared price list (trial = full Business plan).
+  const plan = effectivePlan(company);
+  const userLimitReached = !isSuperAdmin && users.length >= plan.maxUsers;
   const allRoleOptions = [...userRoles, ...customRoles.map(r => r.name)];
 
   return (
@@ -300,7 +302,7 @@ export function UserRightsTab({ companyId, company }: UserRightsTabProps) {
                 </TooltipTrigger>
                 {userLimitReached && (
                     <TooltipContent>
-                        <p>You have reached the 10-user limit for the Basic plan. Please upgrade to add more users.</p>
+                        <p>You have reached the {plan.maxUsers}-user limit of the {plan.name} plan.{plan.id === 'premium' ? ' Contact us about Enterprise for more users.' : ' Upgrade under Subscription to add more users.'}</p>
                     </TooltipContent>
                 )}
             </Tooltip>

@@ -29,6 +29,7 @@ import { Company, PlanId, planIds, BillingCycle, SubscriptionStatus, subscriptio
 import { updateCompanySubscription } from '@/context/site-context';
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
+import { planById } from '@/lib/plans';
 
 const formSchema = z.object({
   planId: z.enum(planIds),
@@ -109,7 +110,7 @@ export function ManageSubscriptionDialog({ open, onOpenChange, company }: Manage
                       </FormControl>
                       <SelectContent>
                         {planIds.map(id => (
-                          <SelectItem key={id} value={id} className="capitalize">{id}</SelectItem>
+                          <SelectItem key={id} value={id}>{planById(id)?.name ?? id}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

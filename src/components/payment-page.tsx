@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { recordPaymentAndUpdateSubscription } from '@/context/site-context';
 import { addYears, addMonths, format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
+import { planById, priceFor, withGst } from '@/lib/plans';
 
 const paymentSchema = z.object({
   cardName: z.string().min(2, 'Name on card is required.'),
@@ -23,10 +24,6 @@ const paymentSchema = z.object({
   cvc: z.string().regex(/^\d{3,4}$/, 'CVC must be 3 or 4 digits.'),
 });
 
-const plans = {
-  basic: { name: 'Basic Plan', priceMonthly: 2999, priceAnnually: 29999 },
-  premium: { name: 'Premium Plan', priceMonthly: 5999, priceAnnually: 59999 },
-};
 
 interface PaymentPageProps {
   company: Company;
@@ -38,8 +35,10 @@ interface PaymentPageProps {
 export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }: PaymentPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const selectedPlan = plans[planId];
-  const price = billingCycle === 'annually' ? selectedPlan.priceAnnually : selectedPlan.priceMonthly;
+  const plan = planById(planId)!;
+  const selectedPlan = { name: `${plan.name} Plan` };
+  // Prices come from the shared list and exclude GST; the amount charged includes 18% GST.
+  const { base: basePrice, gst, total: price } = withGst(priceFor(plan, billingCycle));
   const fullPlanId: FullPlanId = `${planId}-${billingCycle}`;
 
   const form = useForm<z.infer<typeof paymentSchema>>({
@@ -77,6 +76,8 @@ export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }:
         {
             planId: fullPlanId,
             amount: price,
+            baseAmount: basePrice,
+            gstAmount: gst,
             paymentDate: now.toISOString(),
         }
       );
@@ -103,7 +104,7 @@ export function PaymentPage({ company, planId, billingCycle, onPaymentSuccess }:
       <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><CreditCard /> Complete Your Purchase</CardTitle>
-          <CardDescription>You are purchasing the {selectedPlan.name} ({billingCycle}) for {formatCurrency(price)}/{billingCycle === 'annually' ? 'year' : 'month'}.</CardDescription>
+          <CardDescription>You are purchasing the {selectedPlan.name} ({billingCycle}) for {formatCurrency(basePrice)}/{billingCycle === 'annually' ? 'year' : 'month'} + 18% GST ({formatCurrency(gst)}) = <strong>{formatCurrency(price)}</strong>.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

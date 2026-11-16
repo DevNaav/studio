@@ -38,6 +38,7 @@ import { GuidedTour } from '@/components/guided-tour';
 import { useToast } from '@/hooks/use-toast';
 import { FloatingAssistant } from '@/components/floating-assistant';
 import { AlertsBell } from '@/components/alerts-bell';
+import { effectivePlan, planById } from '@/lib/plans';
 
 
 const LoadingComponent = () => (
@@ -391,16 +392,15 @@ function AppClientContent() {
   const isCompanyLocked = !isSuperAdmin && currentCompany?.isLocked === true;
 
 
-  const hasPremiumFeatures = isSuperAdmin || 
-      (currentCompany?.planId?.startsWith('premium')) ||
-      (currentCompany?.subscriptionStatus === 'Trial');
-
-  const onBasicPlan = currentCompany?.planId?.startsWith('basic') && currentCompany.subscriptionStatus === 'Active';
+  // Limits and features come from the shared price list (trial = full Business plan).
+  const activePlan = effectivePlan(currentCompany);
+  const hasPremiumFeatures = isSuperAdmin || activePlan.premiumFeatures;
   
   const constructionSites = useMemo(() => sites.filter(s => (s.type === 'Construction' || !s.type) && s.status !== 'Completed'), [sites]);
   const manufacturingUnits = useMemo(() => sites.filter(s => s.type === 'Manufacturing' && s.status !== 'Completed'), [sites]);
   const completedSites = useMemo(() => sites.filter(site => site.status === 'Completed'), [sites]);
-  const siteLimitReached = onBasicPlan && constructionSites.length >= 5;
+  const siteLimitReached = !isSuperAdmin && activePlan.maxSites !== null
+      && constructionSites.length + manufacturingUnits.length >= activePlan.maxSites;
 
   const getPageTitle = () => {
     switch (activeView) {
@@ -636,7 +636,7 @@ function AppClientContent() {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         )}
-                        {isAdmin && companyIdForViews && (
+                        {isAdmin && companyIdForViews && hasPremiumFeatures && (
                         <SidebarMenuItem>
                             <SidebarMenuButton onClick={() => handleMenuClick('activity-log')} isActive={activeView === 'activity-log'} tooltip="Activity Log" className="sidebar-menu-button">
                                 <History />
@@ -729,7 +729,7 @@ function AppClientContent() {
                                         </TooltipTrigger>
                                         {siteLimitReached && (
                                             <TooltipContent side="right" align="center">
-                                                <p>You have reached the 5-site limit for the Basic plan.</p>
+                                                <p>You have reached the {activePlan.maxSites}-site limit of the {activePlan.name} plan.</p>
                                             </TooltipContent>
                                         )}
                                     </Tooltip>
@@ -890,7 +890,7 @@ function AppClientContent() {
                 ) : (
                     currentCompany && (
                       <Badge variant="outline" className="capitalize">
-                        {currentCompany.planId?.startsWith('premium') ? 'Premium' : 'Basic'} Plan
+                        {subscriptionStatus === 'Trial' ? 'Business' : (planById(currentCompany.planId?.split('-')[0])?.name ?? 'Business')} Plan
                         {subscriptionStatus === 'Trial' && ' · Trial'}
                       </Badge>
                     )
@@ -952,7 +952,7 @@ function AppClientContent() {
                             <Plus className="mr-2 h-4 w-4" />
                             Create New Project
                             </Button>
-                            {siteLimitReached && <p className="text-sm text-destructive mt-2">5-site limit reached for Basic plan.</p>}
+                            {siteLimitReached && <p className="text-sm text-destructive mt-2">{activePlan.maxSites}-site limit reached for the {activePlan.name} plan.</p>}
                         </CardContent>
                     )}
                     </Card>
@@ -969,7 +969,7 @@ function AppClientContent() {
             {activeView === 'threat-modeler' && isAdmin && <ThreatModelerPage />}
             {activeView === 'defect-liability' && isAdmin && <DefectLiabilityPage companyId={companyIdForViews} />}
             {activeView === 'warranty-tracker' && isAdmin && <WarrantyTrackerPage companyId={companyIdForViews} />}
-            {activeView === 'activity-log' && isAdmin && <ActivityLogPage companyId={companyIdForViews} sites={sites} />}
+            {activeView === 'activity-log' && isAdmin && hasPremiumFeatures && <ActivityLogPage companyId={companyIdForViews} sites={sites} />}
             {activeView === 'customers' && isAdmin && <CustomersPage companyId={companyIdForViews} company={currentCompany} sites={sites} />}
             {activeView === 'warehouse' && <WarehousePage companyId={companyIdForViews} />}
             {activeView === 'manufacturing' && isAdmin && <ManufacturingPage companyId={companyIdForViews} />}

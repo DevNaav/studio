@@ -31,6 +31,22 @@ const str = (f: Fields, k: string) => f[k]?.stringValue ?? f[k]?.timestampValue 
 const num = (f: Fields, k: string) => Number(f[k]?.doubleValue ?? f[k]?.integerValue ?? 0);
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
+/** Turns an SMTP error into advice the admin can act on. */
+function smtpErrorMessage(error: any): string {
+  const code = Number(error?.responseCode);
+  const text = String(error?.response ?? error?.message ?? '');
+  if (code === 454 || /too many login attempts/i.test(text)) {
+    return 'Gmail is temporarily blocking sign-ins after too many attempts. Wait about 30 minutes, then try again.';
+  }
+  if (code === 535 || code === 534 || /username and password not accepted|application-specific password/i.test(text)) {
+    return 'The email server rejected the login. Check SMTP_USER (full Gmail address) and SMTP_PASS (a Gmail app password, not your normal password).';
+  }
+  if (/ETIMEDOUT|ECONNECTION|ENOTFOUND/i.test(String(error?.code))) {
+    return 'Could not reach the email server. Check SMTP_HOST and SMTP_PORT.';
+  }
+  return 'Could not send the email. Check the SMTP settings.';
+}
+
 // Stops the same confirmation being sent over and over (per server instance).
 const sentCount = new Map<string, number>();
 
@@ -71,8 +87,7 @@ ${SELLER.name}`,
       });
     } catch (error: any) {
       console.error('Test email failed', error);
-      const auth = /auth|login|credential|535|534/i.test(String(error?.message ?? error) + String(error?.responseCode ?? ''));
-      return NextResponse.json({ error: auth ? 'The email server rejected the login. Check SMTP_USER and SMTP_PASS (use a Gmail app password).' : 'Could not send the test email. Check the SMTP settings.' }, { status: 502 });
+      return NextResponse.json({ error: smtpErrorMessage(error) }, { status: 502 });
     }
     sentCount.set(key, (sentCount.get(key) ?? 0) + 1);
     return NextResponse.json({ sent: true, to: email });
@@ -133,7 +148,7 @@ ${SELLER.name}`,
     });
   } catch (error) {
     console.error('Confirmation email failed', error);
-    return NextResponse.json({ error: 'Could not send the confirmation email.' }, { status: 502 });
+    return NextResponse.json({ error: smtpErrorMessage(error) }, { status: 502 });
   }
 
   sentCount.set(paymentId, (sentCount.get(paymentId) ?? 0) + 1);

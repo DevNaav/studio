@@ -31,6 +31,7 @@ import { format, isBefore, eachDayOfInterval, isValid, isAfter, differenceInDays
 import { formatCurrency } from '@/lib/utils';
 import { Separator } from './ui/separator';
 import { sumDirectExpenses } from '@/lib/costs';
+import { effectivePlan } from '@/lib/plans';
 
 interface SiteDetailsProps {
   site: Site;
@@ -40,7 +41,7 @@ interface SiteDetailsProps {
 
 export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
   const { deleteSite } = useSite();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
@@ -328,7 +329,14 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
           </TabsContent>
           {isManufacturing && (
             <TabsContent value="sales">
-              <SalesPage companyId={companyId} siteId={site.id} />
+              {isSuperAdmin || effectivePlan(company).salesAndCustomers ? (
+                <SalesPage companyId={companyId} siteId={site.id} />
+              ) : (
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <p className="font-semibold">Sales and the customer ledger are part of the Growth plan</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Upgrade under Subscription (in your profile menu) to log sales, track what customers owe and send statements.</p>
+                </div>
+              )}
             </TabsContent>
           )}
           {company?.enableOrderMaterials && (

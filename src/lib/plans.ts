@@ -19,7 +19,8 @@ export interface PlanDefinition {
   annually: number;  // Rs. per year (two months free)
   maxSites: number | null;  // active sites + manufacturing units; null = unlimited
   maxUsers: number;          // team members including the admin
-  premiumFeatures: boolean;  // AI Assistant, AI document reading, Activity log
+  premiumFeatures: boolean;  // AI Assistant, AI document reading, AI Threat Modeler, Activity log
+  salesAndCustomers: boolean; // Sales tab of manufacturing units, Customers ledger
   highlighted?: boolean;
   features: string[];
 }
@@ -34,6 +35,7 @@ export const PLANS: PlanDefinition[] = [
     maxSites: 1,
     maxUsers: 3,
     premiumFeatures: false,
+    salesAndCustomers: false,
     features: ['1 active site', 'Up to 3 users', 'Labour, attendance & payslips', 'Materials, expenses & machines', 'In-app alerts'],
   },
   {
@@ -45,6 +47,7 @@ export const PLANS: PlanDefinition[] = [
     maxSites: 5,
     maxUsers: 10,
     premiumFeatures: false,
+    salesAndCustomers: true,
     highlighted: true,
     features: ['Up to 5 active sites', 'Up to 10 users', 'Everything in Starter', 'Sales, customer ledger & statements', 'PDF reports & payslips'],
   },
@@ -57,6 +60,7 @@ export const PLANS: PlanDefinition[] = [
     maxSites: null,
     maxUsers: 50,
     premiumFeatures: true,
+    salesAndCustomers: true,
     features: ['Unlimited sites', 'Up to 50 users', 'Everything in Growth', 'Activity log (who changed what)', 'AI Assistant & AI document reading', 'Priority support'],
   },
 ];

@@ -36,6 +36,8 @@ interface DashboardPageProps {
   manufacturingUnits: Site[];
   companyId?: string | null;
   setActiveView: (view: any) => void;
+  /** AI features are part of the Business plan. */
+  showAi?: boolean;
 }
 
 function KpiCard({ title, value, icon: Icon, description }: { title: string; value: string; icon: React.ElementType, description: string }) {
@@ -56,7 +58,7 @@ function KpiCard({ title, value, icon: Icon, description }: { title: string; val
     );
 }
 
-export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveView }: DashboardPageProps) {
+export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveView, showAi = false }: DashboardPageProps) {
     const { isAdmin, isSuperAdmin, userProfile, updateUser, user } = useAuth();
     const { setSelectedSiteId, allCompanies, selectedSiteId } = useSite();
     const activeSite = sites.find(s => s.id === selectedSiteId) || sites[0];
@@ -279,7 +281,7 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
             <Button size="lg" onClick={() => setAddSiteOpen(true)}><Plus className="mr-2 h-4 w-4" /> New Site</Button>
             <Button size="lg" variant="outline" onClick={() => setActiveView('labor')}><Users className="mr-2 h-4 w-4" /> New Worker</Button>
             <Button size="lg" variant="outline" onClick={() => setActiveView('machines')}><Construction className="mr-2 h-4 w-4" /> New Machine</Button>
-            <Button size="lg" variant="outline" onClick={() => setActiveView('assistant')}><Bot className="mr-2 h-4 w-4" />Ask AI</Button>
+            {showAi && <Button size="lg" variant="outline" onClick={() => setActiveView('assistant')}><Bot className="mr-2 h-4 w-4" />Ask AI</Button>}
         </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KpiCard title="Active Sites" value={sites.length.toString()} icon={Construction} description="Construction projects in progress" />

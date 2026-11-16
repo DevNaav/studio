@@ -395,6 +395,7 @@ function AppClientContent() {
   // Limits and features come from the shared price list (trial = full Business plan).
   const activePlan = effectivePlan(currentCompany);
   const hasPremiumFeatures = isSuperAdmin || activePlan.premiumFeatures;
+  const hasSalesFeatures = isSuperAdmin || activePlan.salesAndCustomers;
   
   const constructionSites = useMemo(() => sites.filter(s => (s.type === 'Construction' || !s.type) && s.status !== 'Completed'), [sites]);
   const manufacturingUnits = useMemo(() => sites.filter(s => s.type === 'Manufacturing' && s.status !== 'Completed'), [sites]);
@@ -607,7 +608,7 @@ function AppClientContent() {
                             </SidebarMenuButton>
                             </SidebarMenuItem>
                         )}
-                        {isAdmin && (
+                        {isAdmin && hasSalesFeatures && (
                             <SidebarMenuItem>
                             <SidebarMenuButton onClick={() => handleMenuClick('customers')} isActive={activeView === 'customers'} tooltip="Customers" className="sidebar-menu-button">
                                 <BookUser />
@@ -644,7 +645,7 @@ function AppClientContent() {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         )}
-                        {isAdmin && (
+                        {isAdmin && hasPremiumFeatures && (
                         <SidebarMenuItem>
                         <SidebarMenuButton
                             onClick={() => handleMenuClick('threat-modeler')}
@@ -930,7 +931,7 @@ function AppClientContent() {
                 </div>
             </div>
           <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden relative">
-            {activeView === 'dashboard' && <DashboardPage sites={constructionSites} manufacturingUnits={manufacturingUnits} companyId={companyIdForViews} setActiveView={setActiveView} />}
+            {activeView === 'dashboard' && <DashboardPage sites={constructionSites} manufacturingUnits={manufacturingUnits} companyId={companyIdForViews} setActiveView={setActiveView} showAi={hasPremiumFeatures} />}
 
             {activeView === 'sites' && (
             <>
@@ -966,11 +967,11 @@ function AppClientContent() {
             {activeView === 'documents' && isAdmin && <MainDocuments />}
             {activeView === 'theft' && <TheftTab siteId={selectedSiteId || ''} />}
             {activeView === 'analysis' && <AnalysisPage companyId={companyIdForViews} />}
-            {activeView === 'threat-modeler' && isAdmin && <ThreatModelerPage />}
+            {activeView === 'threat-modeler' && isAdmin && hasPremiumFeatures && <ThreatModelerPage />}
             {activeView === 'defect-liability' && isAdmin && <DefectLiabilityPage companyId={companyIdForViews} />}
             {activeView === 'warranty-tracker' && isAdmin && <WarrantyTrackerPage companyId={companyIdForViews} />}
             {activeView === 'activity-log' && isAdmin && hasPremiumFeatures && <ActivityLogPage companyId={companyIdForViews} sites={sites} />}
-            {activeView === 'customers' && isAdmin && <CustomersPage companyId={companyIdForViews} company={currentCompany} sites={sites} />}
+            {activeView === 'customers' && isAdmin && hasSalesFeatures && <CustomersPage companyId={companyIdForViews} company={currentCompany} sites={sites} />}
             {activeView === 'warehouse' && <WarehousePage companyId={companyIdForViews} />}
             {activeView === 'manufacturing' && isAdmin && <ManufacturingPage companyId={companyIdForViews} />}
             {activeView === 'landing-page-editor' && isSuperAdmin && <LandingPageEditor />}

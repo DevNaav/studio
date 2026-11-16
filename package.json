@@ -10,7 +10,8 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:emulator": "npx --yes firebase-tools@13.29.3 emulators:exec --only firestore --project demo-inventra \"vitest run --config vitest.emulator.config.mts\""
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.21.0",
@@ -71,6 +72,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
     "@types/papaparse": "^5.3.14",

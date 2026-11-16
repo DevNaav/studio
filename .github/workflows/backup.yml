@@ -1,0 +1,79 @@
+# Nightly encrypted backup of the whole database (every company).
+#
+# Setup (once): add two repository secrets in GitHub (Settings > Secrets and variables > Actions):
+#   FIREBASE_SERVICE_ACCOUNT  the JSON key of a Google Cloud service account with the
+#                             "Cloud Datastore Viewer" role (read-only) on the Firebase project
+#   BACKUP_PASSPHRASE         a long passphrase; backups are encrypted with it (keep it safe!)
+# Until both exist the job just reports that backups are not set up.
+#
+# Backups are kept 30 days as encrypted workflow artifacts. To restore, see docs/BACKUPS.md.
+name: Nightly backup
+
+on:
+  schedule:
+    - cron: '30 21 * * *' # 03:00 India time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Back up Firestore
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_SECRETS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && secrets.BACKUP_PASSPHRASE != '' }}
+    steps:
+      - name: Backups not set up yet
+        if: env.HAS_SECRETS != 'true'
+        run: echo "::warning::Add the FIREBASE_SERVICE_ACCOUNT and BACKUP_PASSPHRASE secrets to turn on nightly backups (see docs/BACKUPS.md)."
+
+      - uses: actions/checkout@v7
+        if: env.HAS_SECRETS == 'true'
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        if: env.HAS_SECRETS == 'true'
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        if: env.HAS_SECRETS == 'true'
+        run: npm ci --ignore-scripts
+
+      - name: Export every document
+        if: env.HAS_SECRETS == 'true'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          umask 077
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" node scripts/backup-all.mjs "$RUNNER_TEMP/backup.json"
+          rm -f "$RUNNER_TEMP/sa.json"
+
+      - name: Encrypt
+        if: env.HAS_SECRETS == 'true'
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          stamp=$(date -u +%Y-%m-%d)
+          gzip -9 "$RUNNER_TEMP/backup.json"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in "$RUNNER_TEMP/backup.json.gz" -out "inventra-backup-$stamp.json.gz.enc" -pass env:BACKUP_PASSPHRASE
+          rm -f "$RUNNER_TEMP/backup.json.gz"
+          ls -l inventra-backup-*.enc
+
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_SECRETS == 'true'
+        with:
+          name: inventra-backup
+          path: inventra-backup-*.json.gz.enc
+          retention-days: 30
+          if-no-files-found: error

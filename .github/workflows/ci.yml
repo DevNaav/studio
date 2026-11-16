@@ -48,6 +48,32 @@ jobs:
           NEXT_PUBLIC_FIREBASE_API_KEY: ci-placeholder-key
           NEXT_TELEMETRY_DISABLED: 1
 
+  emulator:
+    name: Database rules and backup tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Runs firestore.rules and the backup/restore scripts against the Firebase emulator.
+      - name: Emulator tests
+        run: npm run test:emulator
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

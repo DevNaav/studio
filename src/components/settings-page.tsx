@@ -10,13 +10,12 @@ import { useThemePreference, LIGHT_THEME, DARK_THEME, type ThemePreference } fro
 import { useAuth } from '@/context/auth-context';
 import { EditProfileDialog } from './edit-profile-dialog';
 import { Separator } from './ui/separator';
-import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
-import { clearAllEntries } from '@/lib/clear-entries';
 import { updateCompanyLogo } from '@/context/site-context';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
 import { AnimationToggleSection } from './animation-toggle-section';
 import { CompanyAccountingSettings } from './company-accounting-settings';
+import { BackupSection } from './backup-section';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -34,8 +33,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [theme, setTheme, appliedTheme] = useThemePreference();
   const { userProfile, isSuperAdmin, isAdmin } = useAuth();
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
@@ -43,26 +40,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const handleThemeChange = (themeName: ThemePreference) => setTheme(themeName);
   const themeLabel = (key: string) => themes.find(t => t.key === key)?.name ?? key;
   
-  const handleClearData = async () => {
-    setIsClearing(true);
-    try {
-        const result = await clearAllEntries();
-        toast({
-            title: "Data Cleared",
-            description: result.message
-        });
-    } catch(e) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not clear all data. Please check console for details."
-        });
-    } finally {
-        setIsClearing(false);
-        setIsClearConfirmOpen(false);
-    }
-  }
-
   const handleLogoUpload = async () => {
     if (!logoFile || !userProfile?.companyId) return;
     setIsUploading(true);
@@ -196,27 +173,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       </div>
                   </div>
 
-                  {isSuperAdmin && (
+                  {userProfile.companyId && isAdmin && (
                     <>
                         <Separator />
-                        <div className="space-y-4">
-                            <div className="space-y-1">
-                                <h3 className="text-lg font-semibold text-destructive flex items-center gap-2">
-                                    <AlertTriangle /> Danger Zone
-                                </h3>
-                                <p className="text-sm text-muted-foreground">These actions are destructive and cannot be undone.</p>
-                            </div>
-                            <div className='flex items-center justify-between rounded-lg border border-destructive/50 p-4'>
-                                <div>
-                                    <p className="font-semibold">Clear All Entries</p>
-                                    <p className="text-sm text-muted-foreground">This will permanently delete all data across all companies.</p>
-                                </div>
-                                <Button variant="destructive" onClick={() => setIsClearConfirmOpen(true)} disabled={isClearing}>
-                                    {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Clear Data
-                                </Button>
-                            </div>
-                        </div>
+                        <BackupSection />
                     </>
                   )}
               </div>
@@ -226,14 +186,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       <EditProfileDialog 
         open={isEditProfileOpen}
         onOpenChange={setIsEditProfileOpen}
-      />
-      
-      <DeleteConfirmationDialog
-        open={isClearConfirmOpen}
-        onOpenChange={setIsClearConfirmOpen}
-        onConfirm={handleClearData}
-        title="Are you absolutely sure?"
-        description="This will permanently delete all data, including sites, users, machines, and all logs across all companies. This action cannot be undone."
       />
     </>
   );

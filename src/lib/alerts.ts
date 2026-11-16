@@ -18,7 +18,7 @@ export interface AppAlert {
   /** Stable id: the same problem keeps the same id, so "mark as read" sticks. */
   id: string;
   severity: AlertSeverity;
-  category: 'Stock' | 'EMI' | 'Payments' | 'Documents' | 'Warranty' | 'Retention' | 'Rentals' | 'Tasks';
+  category: 'Budget' | 'Stock' | 'EMI' | 'Payments' | 'Documents' | 'Warranty' | 'Retention' | 'Rentals' | 'Tasks';
   title: string;
   detail: string;
   target: AlertTarget;
@@ -39,6 +39,8 @@ export interface AlertInputs {
   tasks: Task[];
   /** yyyy-MM-dd in the user's time zone. */
   today: string;
+  /** Money spent so far per site id (same total as the site's Summary tab). Optional. */
+  siteSpend?: Map<string, number>;
 }
 
 /** How far ahead to warn, and when unpaid things become a problem. */
@@ -47,6 +49,7 @@ export const ALERT_RULES = {
   expiringSoonDays: 30,
   unpaidSaleDays: 30,
   longRentalDays: 60,
+  budgetWarnPercent: 80,
 };
 
 const money = (n: number) => `Rs. ${Math.round(n).toLocaleString('en-IN')}`;
@@ -67,6 +70,28 @@ export function computeAlerts(input: AlertInputs): AppAlert[] {
   const liveSites = input.sites.filter(s => !s.isDeleted);
   const siteName = new Map(liveSites.map(s => [s.id, s.name]));
   const activeSiteIds = new Set(liveSites.filter(s => s.status !== 'Completed').map(s => s.id));
+
+  // --- Budget: spend reached 80% or 100% of a site's budget. ---
+  if (input.siteSpend) {
+    liveSites.filter(s => activeSiteIds.has(s.id) && (s.budget ?? 0) > 0).forEach(site => {
+      const spent = input.siteSpend!.get(site.id) ?? 0;
+      const pct = (spent / site.budget!) * 100;
+      if (pct < ALERT_RULES.budgetWarnPercent) return;
+      const over = pct >= 100;
+      alerts.push({
+        // The level is part of the id, so crossing 100% shows as a new alert even if 80% was read.
+        id: `budget:${site.id}:${over ? 'over' : 'near'}`,
+        severity: over ? 'critical' : 'warning',
+        category: 'Budget',
+        title: over ? `${site.name} is over budget` : `${site.name} has used ${Math.floor(pct)}% of its budget`,
+        detail: over
+          ? `Spent ${money(spent)} of ${money(site.budget!)} (${money(spent - site.budget!)} over).`
+          : `Spent ${money(spent)} of ${money(site.budget!)}; ${money(site.budget! - spent)} left.`,
+        target: { view: 'site', siteId: site.id },
+        adminOnly: true, // site finances
+      });
+    });
+  }
 
   // --- Low stock: per site and material, same maths as the Materials tab (bought - used). ---
   const stock = new Map<string, { siteId: string; name: string; unit?: string; qty: number; threshold?: number }>();

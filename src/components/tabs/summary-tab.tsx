@@ -14,6 +14,7 @@ import { ExpenseBreakdownChart } from '../expense-breakdown-chart';
 import { format, isAfter, eachDayOfInterval, differenceInDays } from 'date-fns';
 import { useAuth } from '@/context/auth-context';
 import { formatCurrency } from '@/lib/utils';
+import { computeSiteSpend } from '@/lib/costs';
 import { Loader2 } from 'lucide-react';
 
 interface SummaryTabProps {
@@ -80,87 +81,13 @@ export function SummaryTab({ site, totalLaborWages, wageSummary }: SummaryTabPro
   const siteMachines = useMemo(() => allMachines.filter(m => m.assignedSiteId === site.id), [allMachines, site.id]);
   const machineIdsOnSite = useMemo(() => siteMachines.map(m => m.id), [siteMachines]);
 
-  const siteExpenseBreakdown = useMemo(() => {
-    const dataMap = new Map<string, number>();
-
-    const totalWagesPaid = wageSummary.reduce((acc, s) => acc + s.totalPaid, 0);
-    if (totalWagesPaid > 0) dataMap.set('Labor', totalWagesPaid);
-    
-    const totalMaterialsCost = materials
-      .filter(item => item.status === 'Bought' && !item.isDeleted)
-      .reduce((acc, item) => acc + (item.quantity * (item.pricePerUnit || 0)), 0);
-    if (totalMaterialsCost > 0) dataMap.set('Materials', totalMaterialsCost);
-    
-    const totalMaintenanceCost = allMaintenanceLogs
-        .filter(l => !l.isDeleted && machineIdsOnSite.includes(l.machineId) && l.costAllocation === 'Site Expenses')
-        .reduce((acc, m) => acc + (m.cost || 0), 0);
-    if (totalMaintenanceCost > 0) dataMap.set('Maintenance', totalMaintenanceCost);
-
-    const siteFuelCost = allFuelLogs
-      .filter(log => log.siteId === site.id && !log.isDeleted)
-      .reduce((acc, f) => acc + f.cost, 0);
-    if (siteFuelCost > 0) dataMap.set('Fuel', siteFuelCost);
-    
-    let totalRentalCost = 0;
-    rentedMaterials.filter(item => !item.isDeleted).forEach(item => {
-        const endDate = item.status === 'Returned' && item.returnDate ? new Date(item.returnDate) : today;
-        let daysUsed = 0;
-        if (isAfter(endDate, new Date(item.startDate))) {
-            const rentalPeriod = eachDayOfInterval({ start: new Date(item.startDate), end: endDate });
-            rentalPeriod.forEach(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const attendance = rentedMaterialAttendances.find(a => a.rentedMaterialId === item.id && a.date === dateStr);
-                if (!attendance || attendance.status === 'Used') {
-                    daysUsed++;
-                }
-            });
-        }
-        totalRentalCost += item.rentPerDay * item.quantity * daysUsed;
-    });
-    
-    siteMachines
-      .filter(m => m.acquisition === 'Rented' && m.dailyRentalPrice && m.assignmentDate)
-      .forEach(machine => {
-        const startDate = new Date(machine.assignmentDate!);
-        if (isAfter(startDate, today)) return;
-
-        const rentalPeriod = eachDayOfInterval({ start: startDate, end: today });
-        const machineAttendanceForMachine = machineAttendances.filter(a => a.machineId === machine.id);
-
-        rentalPeriod.forEach(day => {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            const attendance = machineAttendanceForMachine.find(a => a.date === dateStr);
-            const status = attendance?.status || 'Unmarked';
-            if (status === 'Present' || status === 'Unmarked') {
-              totalRentalCost += machine.dailyRentalPrice!;
-            } else if (status === 'Half-day') {
-              totalRentalCost += machine.dailyRentalPrice! / 2;
-            }
-        });
-      });
-
-    if (totalRentalCost > 0) dataMap.set('Rental', totalRentalCost);
-
-    const totalEmiCost = expenses.filter(e => e.category === 'EMI' && !e.isDeleted).reduce((acc, e) => acc + e.amount, 0);
-    if (totalEmiCost > 0) dataMap.set('EMI', totalEmiCost);
-
-    const totalToolCost = tools
-      .filter(tool => !tool.isDeleted && tool.price)
-      .reduce((acc, tool) => acc + (tool.price!), 0);
-    if (totalToolCost > 0) dataMap.set('Tools', totalToolCost);
-
-    // Tools, Food and Maintenance expense records were left out of the site total before.
-    const otherCategories = ['Transport', 'Other', 'Tools', 'Food', 'Maintenance'];
-    otherCategories.forEach(category => {
-        const categoryCost = expenses
-            .filter(e => e.category === category && !e.isDeleted)
-            .reduce((acc, e) => acc + e.amount, 0);
-        if (categoryCost > 0) dataMap.set(category, (dataMap.get(category) || 0) + categoryCost);
-    });
-    
-    return Array.from(dataMap.entries()).map(([name, value]) => ({ name, value }));
-
-  }, [expenses, wageSummary, siteMachines, allMaintenanceLogs, allFuelLogs, materials, rentedMaterials, rentedMaterialAttendances, machineAttendances, machineIdsOnSite, site.id, today, tools]);
+  // Shared with budget alerts (src/lib/costs.ts), so both always show the same total.
+  const siteExpenseBreakdown = useMemo(() => computeSiteSpend({
+    siteId: site.id,
+    laborPaid: wageSummary.reduce((acc, s) => acc + s.totalPaid, 0),
+    expenses, materials, machines: allMachines, maintenanceLogs: allMaintenanceLogs, fuelLogs: allFuelLogs,
+    rentedMaterials, rentedMaterialAttendances, machineAttendances, tools, today,
+  }).breakdown, [expenses, wageSummary, allMachines, allMaintenanceLogs, allFuelLogs, materials, rentedMaterials, rentedMaterialAttendances, machineAttendances, site.id, today, tools]);
 
   const totalSiteExpenses = useMemo(() => {
     return siteExpenseBreakdown.reduce((acc, item) => acc + item.value, 0);

@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { Inter, Source_Code_Pro } from 'next/font/google';
 import { AuthProvider } from '@/context/auth-context';
+import { SITE_URL } from '@/lib/site';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -18,8 +19,17 @@ const sourceCodePro = Source_Code_Pro({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'Inventra',
   description: 'Construction Site Management App to track inventory, expenses, and labor.',
+  // Link previews on WhatsApp, LinkedIn, etc.
+  openGraph: {
+    type: 'website',
+    url: SITE_URL,
+    siteName: 'Inventra',
+    title: 'Inventra: construction and manufacturing management',
+    description: 'Track sites, labour, materials, machines, sales and payments in one place.',
+  },
 };
 
 export default function RootLayout({

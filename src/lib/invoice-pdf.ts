@@ -7,11 +7,12 @@ import jsPDF from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { planById } from '@/lib/plans';
+import { SITE_HOST } from '@/lib/site';
 
 /** Who is selling. Shown at the top of every invoice. */
 export const SELLER = {
   name: 'Inventra',
-  website: 'studio-mu-two-89.vercel.app',
+  website: SITE_HOST,
 };
 
 export interface InvoiceData {

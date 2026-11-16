@@ -6,8 +6,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/auth-context';
-import { onGlobalCollectionSnapshot } from '@/context/site-context';
-import { Expense, InventoryItem, LaborTransaction, Site, Sale, Machine, RentedMaterial, RentedMaterialAttendance, MachineAttendance, MaintenanceLog, FuelLog, Tool } from '@/lib/types';
+import { onGlobalCollectionSnapshot, useSite } from '@/context/site-context';
+import { Attendance, Labor, WorkLog, Expense, InventoryItem, LaborTransaction, Site, Sale, Machine, RentedMaterial, RentedMaterialAttendance, MachineAttendance, MaintenanceLog, FuelLog, Tool } from '@/lib/types';
 import { Loader2, Briefcase, IndianRupee, HardHat, TrendingUp, Factory, Warehouse, Wrench, Tractor, Printer, Download } from 'lucide-react';
 import { format, isAfter, isBefore, isEqual, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from './ui/select';
@@ -19,6 +19,7 @@ import { Button } from './ui/button';
 import jsPDF from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { saleProfit, sumDirectExpenses } from '@/lib/costs';
+import { laborCostInRange } from '@/lib/wages';
 import { StatCard } from '@/components/stat-card';
 
 interface AnalysisPageProps {
@@ -43,6 +44,11 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
   const [allMaintenanceLogs, setAllMaintenanceLogs] = useState<MaintenanceLog[]>([]);
   const [allFuelLogs, setAllFuelLogs] = useState<FuelLog[]>([]);
   const [allTools, setAllTools] = useState<Tool[]>([]);
+  const [allLabor, setAllLabor] = useState<Labor[]>([]);
+  const [allAttendances, setAllAttendances] = useState<Attendance[]>([]);
+  const [allWorkLogs, setAllWorkLogs] = useState<WorkLog[]>([]);
+  const { allCompanies } = useSite();
+  const company = allCompanies.find(c => c.id === companyId);
 
   const pageRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +60,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
     }
 
     setLoading(true);
-    const collectionsToLoad = 12; // Increased to 12
+    const collectionsToLoad = 15;
     let collectionsLoaded = 0;
     const onDataLoaded = () => {
       collectionsLoaded++;
@@ -76,6 +82,9 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
         onGlobalCollectionSnapshot<MaintenanceLog>('maintenance_logs', companyId, (data) => { setAllMaintenanceLogs(data); onDataLoaded(); }),
         onGlobalCollectionSnapshot<FuelLog>('fuel_logs', companyId, (data) => { setAllFuelLogs(data); onDataLoaded(); }),
         onGlobalCollectionSnapshot<Tool>('tools', companyId, (data) => { setAllTools(data); onDataLoaded(); }),
+        onGlobalCollectionSnapshot<Labor>('labors', companyId, (data) => { setAllLabor(data); onDataLoaded(); }),
+        onGlobalCollectionSnapshot<Attendance>('attendances', companyId, (data) => { setAllAttendances(data); onDataLoaded(); }),
+        onGlobalCollectionSnapshot<WorkLog>('work_logs', companyId, (data) => { setAllWorkLogs(data); onDataLoaded(); }),
     ];
 
     return () => unsubs.forEach(unsub => unsub());
@@ -125,10 +134,31 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
 
   }, [allExpenses, allLaborTransactions, allSales, allInventory, allMaintenanceLogs, allFuelLogs, allTools, allMachines, isWithinDateRange, filterBySite]);
 
+  // Labour and food per site for the chosen dates, following the company's accounting settings
+  // (wages earned or paid; food paid by the company or cut from wages), like the Dashboard and site pages.
+  const laborBySite = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const map = new Map<string, { labor: number; food: number }>();
+    sites.forEach(site => {
+      map.set(site.id, laborCostInRange({
+        labors: allLabor.filter(l => l.siteId === site.id),
+        attendances: allAttendances.filter(a => a.siteId === site.id),
+        workLogs: allWorkLogs.filter(w => w.siteId === site.id),
+        transactions: allLaborTransactions.filter(t => t.siteId === site.id),
+        from: dateRange.from,
+        to: dateRange.to,
+        today,
+        basis: company?.laborCostBasis ?? 'earned',
+        foodMode: company?.foodCostMode,
+      }));
+    });
+    return map;
+  }, [sites, allLabor, allAttendances, allWorkLogs, allLaborTransactions, dateRange, company?.laborCostBasis, company?.foodCostMode]);
+
   const siteSummaries = useMemo(() => {
     return constructionSites.map(site => {
       const siteExpenses = allExpenses.filter(e => e.siteId === site.id && isWithinDateRange(e.date));
-      const siteLabor = allLaborTransactions.filter(l => l.siteId === site.id && isWithinDateRange(l.date));
+      const siteLabor = laborBySite.get(site.id) ?? { labor: 0, food: 0 };
       const siteMaterials = allInventory.filter(i => i.siteId === site.id && i.status === 'Bought' && isWithinDateRange(i.date));
       const siteTools = allTools.filter(t => t.siteId === site.id);
       
@@ -143,7 +173,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
       // Material-transfer expenses are skipped: the same transfer is already a priced "Bought"
       // stock entry below. (Rent here comes from the settlement expenses, so those stay in.)
       const totalCost = siteExpenses.filter(e => e.category !== 'Materials').reduce((sum, e) => sum + e.amount, 0) +
-                        siteLabor.filter(l => l.type === 'Payment').reduce((sum, l) => sum + l.amount, 0) +
+                        siteLabor.labor + siteLabor.food +
                         siteMaterials.reduce((sum, m) => sum + (m.quantity * (m.pricePerUnit || 0)), 0) +
                         siteTools.reduce((sum, t) => sum + (t.price || 0), 0) +
                         siteMaintenanceCost + siteFuelCost;
@@ -156,7 +186,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
         budgetUsed
       };
     });
-  }, [constructionSites, allExpenses, allLaborTransactions, allInventory, allMachines, allMaintenanceLogs, allFuelLogs, allTools, isWithinDateRange]);
+  }, [constructionSites, allExpenses, laborBySite, allInventory, allMachines, allMaintenanceLogs, allFuelLogs, allTools, isWithinDateRange]);
 
   const unitSummaries = useMemo(() => {
     return manufacturingUnits.map(unit => {
@@ -187,7 +217,6 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
 
     const relevantSiteIds = new Set(relevantSites.map(s => s.id));
 
-    const labor = allLaborTransactions.filter(l => isWithinDateRange(l.date) && relevantSiteIds.has(l.siteId || ''));
     const sales = allSales.filter(s => isWithinDateRange(s.date) && relevantSiteIds.has(s.siteId || ''));
     const materials = allInventory.filter(i => i.type === 'Material' && i.status === 'Bought' && isWithinDateRange(i.date) && relevantSiteIds.has(i.siteId || ''));
     const inventoryItems = allInventory.filter(i => relevantSiteIds.has(i.siteId || ''));
@@ -196,8 +225,11 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
     const tools = allTools.filter(t => filterBySite(t));
     const expenses = allExpenses.filter(e => isWithinDateRange(e.date) && relevantSiteIds.has(e.siteId || ''));
 
-    const laborCost = labor.filter(l => l.type === 'Payment').reduce((sum, l) => sum + l.amount, 0);
+    let laborCost = 0;
+    let workerFood = 0;
+    relevantSiteIds.forEach(id => { const x = laborBySite.get(id); if (x) { laborCost += x.labor; workerFood += x.food; } });
     if(laborCost > 0) dataMap.set('Labor', laborCost);
+    if(workerFood > 0) dataMap.set('Food', workerFood); // food given to workers, when the company pays for it
 
     const materialsCost = materials.reduce((sum, m) => sum + (m.pricePerUnit || 0) * m.quantity, 0);
     if(materialsCost > 0) dataMap.set('Materials', materialsCost);
@@ -289,7 +321,7 @@ export function AnalysisPage({ companyId }: AnalysisPageProps) {
         inventoryValue,
         expenseBreakdown,
     };
-  }, [view, sites, manufacturingUnits, allExpenses, allLaborTransactions, allSales, allInventory, allMachines, allRentedMaterials, allRentedMaterialAttendances, allMachineAttendances, allMaintenanceLogs, allFuelLogs, allTools, isWithinDateRange, dateRange, filterBySite]);
+  }, [view, sites, manufacturingUnits, allExpenses, laborBySite, allSales, allInventory, allMachines, allRentedMaterials, allRentedMaterialAttendances, allMachineAttendances, allMaintenanceLogs, allFuelLogs, allTools, isWithinDateRange, dateRange, filterBySite]);
 
   const handlePrint = () => {
     window.print();

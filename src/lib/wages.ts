@@ -3,8 +3,8 @@
  * Used by the Labor tab, the site page, site totals and budget alerts, and uses the same
  * earning rules as payslips (earnedUpTo), so every screen agrees.
  */
-import { differenceInDays, parseISO, isValid } from 'date-fns';
-import type { Attendance, FoodCostMode, Labor, LaborTransaction, WorkLog } from '@/lib/types';
+import { differenceInDays, format, parseISO, isValid, subDays } from 'date-fns';
+import type { Attendance, FoodCostMode, Labor, LaborCostBasis, LaborTransaction, WorkLog } from '@/lib/types';
 import { earnedUpTo } from '@/lib/payslip';
 import { roundMoney } from '@/lib/utils';
 
@@ -78,4 +78,49 @@ export function siteLaborTotals(workers: WorkerMoney[]): SiteLaborTotals {
     owed: roundMoney(workers.reduce((s, w) => s + Math.max(0, w.balance), 0)),
     advances: roundMoney(workers.reduce((s, w) => s + Math.max(0, -w.balance), 0)),
   };
+}
+
+/**
+ * Labour and food cost of some sites' workers between two dates (inclusive), for reports.
+ * Follows the company's accounting settings the same way computeSiteSpend does:
+ * - 'earned': wages earned in the period (earned up to `to` minus earned before `from`);
+ * - 'paid': cash paid in the period, plus food when food is cut from wages.
+ * Food is its own cost only when the company pays for it (foodMode 'company').
+ */
+export function laborCostInRange(params: {
+  labors: Labor[];
+  attendances: Attendance[];
+  workLogs: WorkLog[];
+  transactions: LaborTransaction[];
+  from: string; // yyyy-MM-dd ('' = from the start)
+  to: string;   // yyyy-MM-dd ('' = up to today)
+  today: string;
+  basis?: LaborCostBasis;
+  foodMode?: FoodCostMode;
+}): { labor: number; food: number } {
+  const { from, today } = params;
+  const to = params.to || today;
+  const deduct = params.foodMode === 'deduct';
+  const basis = params.basis ?? 'earned';
+  const inRange = (d: string) => (!from || d >= from) && d <= to;
+  const dayBefore = from ? format(subDays(parseISO(from), 1), 'yyyy-MM-dd') : '';
+
+  let labor = 0;
+  let food = 0;
+  params.labors.filter(l => !l.isDeleted).forEach(l => {
+    const tx = params.transactions.filter(t => !t.isDeleted && t.laborId === l.id && t.date && inRange(t.date));
+    const paid = tx.filter(t => t.type === 'Payment').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const foodGiven = tx.filter(t => t.type === 'Food').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    food += foodGiven;
+    if (basis === 'earned') {
+      const attendanceByDate = new Map(params.attendances.filter(a => !a.isDeleted && a.laborId === l.id).map(a => [a.date, a.status]));
+      const logs = params.workLogs.filter(w => !w.isDeleted && w.laborerId === l.id);
+      const upToEnd = earnedUpTo(l, to, today, attendanceByDate, logs);
+      const before = dayBefore ? earnedUpTo(l, dayBefore, today, attendanceByDate, logs) : 0;
+      labor += Math.max(0, upToEnd - before);
+    } else {
+      labor += paid + (deduct ? foodGiven : 0);
+    }
+  });
+  return { labor: roundMoney(labor), food: deduct ? 0 : roundMoney(food) };
 }

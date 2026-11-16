@@ -30,6 +30,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { todayISO } from '@/lib/utils';
+import { mainUnit, materialKey, summariseMaterials, unitProblem } from '@/lib/materials';
 
 const BbsDialog = dynamic(() => import('../bbs-dialog').then(mod => mod.BbsDialog), {
   ssr: false,
@@ -118,8 +119,10 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
   }, [currentCompanyId]);
 
   const companyMaterials = useMemo(() => {
-    const uniqueNames = new Set(allCompanyInventory.map(item => item.name));
-    return Array.from(uniqueNames);
+    // One entry per material, however it was capitalised or spaced.
+    const byKey = new Map<string, string>();
+    allCompanyInventory.forEach(item => { const k = materialKey(item.name || ''); if (k && !byKey.has(k)) byKey.set(k, item.name.trim()); });
+    return Array.from(byKey.values());
   }, [allCompanyInventory]);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -143,7 +146,7 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
   const selectedMaterialData = useMemo(() => {
     if (selectedMaterialName) {
       const allItemsForMaterial = allCompanyInventory
-        .filter(item => item.name === selectedMaterialName)
+        .filter(item => materialKey(item.name || '') === materialKey(selectedMaterialName) && item.id !== selectedItem?.id)
         .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
 
       if (allItemsForMaterial.length > 0) {
@@ -156,7 +159,12 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
       }
     }
     return null;
-  }, [selectedMaterialName, allCompanyInventory]);
+  }, [selectedMaterialName, allCompanyInventory, selectedItem]);
+
+  // The unit this material is already recorded in (by its other entries), if any.
+  const lockedUnit = useMemo(() => selectedMaterialName
+    ? mainUnit(allCompanyInventory.filter(i => materialKey(i.name || '') === materialKey(selectedMaterialName) && i.id !== selectedItem?.id))
+    : '', [selectedMaterialName, allCompanyInventory, selectedItem]);
 
 
   useEffect(() => {
@@ -212,54 +220,9 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
     setSelectedItem(null);
   };
 
-  const inventorySummary = useMemo(() => {
-    const summary: { [key: string]: { 
-        name: string; 
-        bought: number; 
-        used: number; 
-        totalCost: number;
-        unit?: string;
-        lowStockThreshold?: number;
-    } } = {};
-
-    materials.forEach(item => {
-        const normalizedName = item.name.trim().toLowerCase();
-        if (!summary[normalizedName]) {
-            summary[normalizedName] = { 
-                name: item.name, 
-                bought: 0, 
-                used: 0, 
-                totalCost: 0,
-                lowStockThreshold: item.lowStockThreshold,
-            };
-        }
-
-        if (item.status === 'Bought') {
-            summary[normalizedName].bought += item.quantity;
-            summary[normalizedName].totalCost += item.quantity * (item.pricePerUnit || 0);
-        } else if (item.status === 'Used') {
-            summary[normalizedName].used += item.quantity;
-        }
-        
-        // This is not a great way to handle units, but it's a simple approach.
-        // It will take the unit from the last processed item for that material.
-        if (item.unit) {
-            summary[normalizedName].unit = item.unit;
-        }
-
-        if (item.lowStockThreshold) {
-          summary[normalizedName].lowStockThreshold = item.lowStockThreshold;
-        }
-    });
-
-    return Object.values(summary).map(item => {
-        const stored = item.bought - item.used;
-        return {
-            ...item,
-            stored,
-        };
-    });
-  }, [materials]);
+  // Shared stock maths (src/lib/materials.ts): one unit per material, unit-less entries count
+  // in the material's unit, convertible units are converted, others are flagged.
+  const inventorySummary = useMemo(() => summariseMaterials(materials), [materials]);
 
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -267,6 +230,14 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
       toast({ variant: 'destructive', title: 'Error', description: 'User not associated with a company.' });
       return;
     }
+    // One unit per material: block a unit that doesn't match the material's other entries.
+    const others = allCompanyInventory.filter(i => i.id !== selectedItem?.id);
+    const problem = unitProblem(values.name, values.unit, others);
+    if (problem) {
+      form.setError('unit', { message: problem });
+      return;
+    }
+    if (!values.unit && lockedUnit) values.unit = lockedUnit;
     setIsSubmitting(true);
     const itemData: Partial<InventoryItem> = { 
         name: values.name, 
@@ -480,11 +451,19 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
                               inventorySummary.map(item => {
                                   const isLowStock = item.lowStockThreshold !== undefined && item.stored <= item.lowStockThreshold;
                                   return (
-                                  <TableRow key={item.name} className={isLowStock ? 'bg-destructive/10' : ''}>
+                                  <TableRow key={item.key} className={isLowStock ? 'bg-destructive/10' : ''}>
                                       <TableCell className="font-medium flex items-center gap-2">
                                           {isLowStock && <AlertTriangle className="h-4 w-4 text-destructive" />}
                                           {getMaterialIcon(item.name)}
                                           {item.name}
+                                          {item.mixedUnits.length > 0 && (
+                                            <span
+                                              className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400"
+                                              title={`Some entries are in ${item.mixedUnits.join(', ')}, which can't be converted to ${item.unit}. They are left out of these totals; edit them to use ${item.unit}.`}
+                                            >
+                                              Mixed units: {item.mixedUnits.join(', ')} not counted
+                                            </span>
+                                          )}
                                       </TableCell>
                                       <TableCell className="text-center">{item.bought.toLocaleString()} {item.unit}</TableCell>
                                       <TableCell className="text-center">{item.used.toLocaleString()} {item.unit}</TableCell>
@@ -671,7 +650,8 @@ export function MaterialsTab({ siteId, companyId, isManufacturing = false }: Mat
                             placeholder="e.g., bags, tons"
                             {...field}
                             value={field.value || ''}
-                            readOnly={!selectedItem && !!selectedMaterialData?.unit}
+                            readOnly={!!lockedUnit}
+                            title={lockedUnit ? `This material is recorded in ${lockedUnit}` : undefined}
                           />
                         </FormControl>
                         <FormMessage />

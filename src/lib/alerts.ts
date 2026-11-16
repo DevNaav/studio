@@ -3,6 +3,7 @@
  * Pure functions only (no database calls), so the rules are easy to test and change.
  */
 import { differenceInCalendarDays, parseISO, isValid } from 'date-fns';
+import { summariseMaterials } from '@/lib/materials';
 import type {
   DefectLiability, Document, EmiPayment, InventoryItem, Machine, RentedMaterial, Sale, Site, Task, Warranty,
 } from '@/lib/types';
@@ -93,29 +94,23 @@ export function computeAlerts(input: AlertInputs): AppAlert[] {
     });
   }
 
-  // --- Low stock: per site and material, same maths as the Materials tab (bought - used). ---
-  const stock = new Map<string, { siteId: string; name: string; unit?: string; qty: number; threshold?: number }>();
+  // --- Low stock: per site and material, same maths as the Materials tab (src/lib/materials.ts). ---
+  const bySite = new Map<string, InventoryItem[]>();
   input.inventory
     .filter(i => !i.isDeleted && i.type === 'Material' && activeSiteIds.has(i.siteId))
-    .forEach(i => {
-      const key = `${i.siteId}|${i.name.trim().toLowerCase()}`;
-      const entry = stock.get(key) ?? { siteId: i.siteId, name: i.name.trim(), qty: 0 };
-      if (i.status === 'Bought') entry.qty += Number(i.quantity) || 0;
-      else if (i.status === 'Used') entry.qty -= Number(i.quantity) || 0;
-      if (i.unit) entry.unit = i.unit;
-      if (i.lowStockThreshold) entry.threshold = i.lowStockThreshold;
-      stock.set(key, entry);
-    });
-  stock.forEach((s, key) => {
-    if (s.threshold === undefined || s.qty > s.threshold) return;
-    const unit = s.unit ? ` ${s.unit}` : '';
-    alerts.push({
-      id: `stock:${key}`,
-      severity: s.qty <= 0 ? 'critical' : 'warning',
-      category: 'Stock',
-      title: s.qty <= 0 ? `${s.name} is out of stock` : `${s.name} is running low`,
-      detail: `${siteName.get(s.siteId)}: ${Math.max(0, +s.qty.toFixed(2))}${unit} left (alert at ${s.threshold}${unit}).`,
-      target: { view: 'site', siteId: s.siteId },
+    .forEach(i => bySite.set(i.siteId, [...(bySite.get(i.siteId) ?? []), i]));
+  bySite.forEach((items, siteId) => {
+    summariseMaterials(items).forEach(m => {
+      if (m.lowStockThreshold === undefined || m.stored > m.lowStockThreshold) return;
+      const unit = m.unit ? ` ${m.unit}` : '';
+      alerts.push({
+        id: `stock:${siteId}|${m.key}`,
+        severity: m.stored <= 0 ? 'critical' : 'warning',
+        category: 'Stock',
+        title: m.stored <= 0 ? `${m.name} is out of stock` : `${m.name} is running low`,
+        detail: `${siteName.get(siteId)}: ${Math.max(0, +m.stored.toFixed(2))}${unit} left (alert at ${m.lowStockThreshold}${unit}).`,
+        target: { view: 'site', siteId },
+      });
     });
   });
 

@@ -32,6 +32,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DashboardExpenseChart } from './dashboard-expense-chart';
 import { todayISO } from '@/lib/utils';
 import { logActivity } from '@/lib/activity-log';
+import { materialKey, quantityIn, summariseMaterials } from '@/lib/materials';
 
 
 const saleMaterialItemSchema = z.object({
@@ -121,33 +122,21 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
     };
   }, [companyId, siteId]);
 
+  // Stock per material in its own unit (src/lib/materials.ts), plus the average bought price
+  // per that unit, used to estimate production cost.
   const inventorySummary = useMemo(() => {
     const summary: { [key: string]: { name: string; stored: number; avgPrice: number; unit: string; } } = {};
-    
-    allInventory.forEach(item => {
-        const normalizedName = item.name.trim().toLowerCase();
-        if (!summary[normalizedName]) {
-            summary[normalizedName] = { name: item.name, stored: 0, avgPrice: 0, unit: item.unit || '' };
-        }
+    summariseMaterials(allInventory).forEach(m => {
+      const priced = allInventory.filter(i => !i.isDeleted && materialKey(i.name || '') === m.key && i.status === 'Bought' && i.pricePerUnit);
+      let cost = 0, qty = 0;
+      priced.forEach(i => {
+        const q = quantityIn(i, m.unit);
+        if (q === null || q <= 0) return;
+        cost += i.pricePerUnit! * i.quantity;
+        qty += q;
+      });
+      summary[m.key] = { name: m.name, stored: m.stored, avgPrice: qty > 0 ? cost / qty : 0, unit: m.unit };
     });
-
-    for (const key in summary) {
-        const materialItems = allInventory.filter(item => item.name.trim().toLowerCase() === key && item.status === 'Bought' && item.pricePerUnit);
-        const totalCost = materialItems.reduce((acc, item) => acc + (item.pricePerUnit! * item.quantity), 0);
-        const totalQuantity = materialItems.reduce((acc, item) => acc + item.quantity, 0);
-        summary[key].avgPrice = totalQuantity > 0 ? totalCost / totalQuantity : 0;
-
-        const storedBought = allInventory
-            .filter(item => item.name.trim().toLowerCase() === key && item.status === 'Bought')
-            .reduce((acc, item) => acc + item.quantity, 0);
-        
-        const storedUsed = allInventory
-            .filter(item => item.name.trim().toLowerCase() === key && item.status === 'Used')
-            .reduce((acc, item) => acc + item.quantity, 0);
-        
-        summary[key].stored = storedBought - storedUsed;
-    }
-
     return summary;
   }, [allInventory]);
   
@@ -215,7 +204,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
   
   const estimatedCost = (materialsUsedForSale || []).reduce((acc, material) => {
     if (!material.name || !material.quantity) return acc;
-    const materialInfo = inventorySummary[material.name.toLowerCase()];
+    const materialInfo = inventorySummary[materialKey(material.name)];
     if (materialInfo) {
         return acc + (materialInfo.avgPrice * material.quantity);
     }
@@ -259,7 +248,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
 
     if (!selectedSale) { // Only check for stock on new sales
         const insufficientMaterials = values.materialsUsed.filter(material => {
-            const materialName = material.name.toLowerCase();
+            const materialName = materialKey(material.name);
             const requiredQty = material.quantity;
             const stock = inventorySummary[materialName]?.stored || 0;
             return stock < requiredQty;
@@ -267,7 +256,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
 
         if (insufficientMaterials.length > 0) {
             const errorMessages = insufficientMaterials.map(material => {
-                const materialName = material.name.toLowerCase();
+                const materialName = materialKey(material.name);
                 const requiredQty = material.quantity;
                 const stock = inventorySummary[materialName]?.stored || 0;
                 return `${material.name} (Required: ${requiredQty.toFixed(2)}, Available: ${stock.toFixed(2)})`;
@@ -758,7 +747,7 @@ export function SalesPage({ companyId, siteId }: SalesPageProps) {
                                     <Select
                                       onValueChange={(value) => {
                                         field.onChange(value);
-                                        const materialInfo = inventorySummary[value.toLowerCase()];
+                                        const materialInfo = inventorySummary[materialKey(value)];
                                         if (materialInfo) {
                                           updateSaleMaterial(index, {
                                             ...saleForm.getValues(`materialsUsed.${index}`),

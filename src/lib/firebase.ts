@@ -5,9 +5,18 @@ import { getAuth, Auth, initializeAuth, inMemoryPersistence } from "firebase/aut
 import { getFirestore, initializeFirestore, Firestore } from "firebase/firestore";
 import { getAnalytics, isSupported } from "firebase/analytics";
 
+// The Firebase web key comes from NEXT_PUBLIC_FIREBASE_API_KEY (set in Vercel).
+// Without it Firebase throws while the build pre-renders pages, failing the whole build
+// (e.g. Vercel preview builds when the key is only set for Production). A placeholder
+// lets the build finish; that deployment simply can't sign anyone in, and says so.
+const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'missing-NEXT_PUBLIC_FIREBASE_API_KEY';
+if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY && typeof window !== 'undefined') {
+  console.error('NEXT_PUBLIC_FIREBASE_API_KEY is not set for this deployment, so sign-in will not work. Add it in Vercel → Settings → Environment Variables.');
+}
+
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey,
   authDomain: "duplicatemanagmne.firebaseapp.com",
   projectId: "duplicatemanagmne",
   storageBucket: "duplicatemanagmne.appspot.com",

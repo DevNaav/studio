@@ -162,3 +162,32 @@ export function allocatePayment(sales: Sale[], amount: number): { sale: Sale; ap
   }
   return out;
 }
+
+/** A 10-digit Indian mobile number found in the buyer text (e.g. "Sharma 98765 43210"), or null. */
+export function phoneFromText(text: string | undefined | null): string | null {
+  if (!text) return null;
+  const digits = text.replace(/[^\d+]/g, ' ');
+  const m = digits.replace(/\s+/g, '').match(/(?:\+?91)?([6-9]\d{9})(?!\d)/);
+  return m ? m[1] : null;
+}
+
+/** Polite payment reminder text for a customer (works for WhatsApp, SMS or email). */
+export function reminderMessage(customer: CustomerSummary, companyName: string, today: string): string {
+  const rs = (n: number) => `Rs. ${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  const unpaid = customer.sales
+    .filter(s => !s.isDeleted && (s.salePrice || 0) - (s.amountPaid || 0) > 0.005)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const lines = unpaid.slice(-5).map(s => `- ${s.date}: ${s.gradeName}, ${rs((s.salePrice || 0) - (s.amountPaid || 0))} due`);
+  const name = customer.name.replace(/[\d+\s-]{8,}$/, '').trim() || customer.name;
+  return [
+    `Namaste ${name},`,
+    '',
+    `This is a reminder from ${companyName || 'us'} that ${rs(customer.outstanding)} is due on your account as of ${today}${customer.oldestUnpaidDays ? ` (oldest bill ${customer.oldestUnpaidDays} days ago)` : ''}.`,
+    '',
+    ...(lines.length ? ['Unpaid bills:', ...lines, ...(unpaid.length > 5 ? [`...and ${unpaid.length - 5} more (see attached statement)`] : []), ''] : []),
+    'Kindly arrange the payment at the earliest. If you have already paid, please ignore this message and share the payment details.',
+    '',
+    'Thank you,',
+    companyName || '',
+  ].join('\n').trim();
+}

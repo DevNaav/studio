@@ -6,11 +6,11 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO, subDays } from 'date-fns';
-import { ArrowLeft, Download, IndianRupee, Loader2, Search, Share2, Users } from 'lucide-react';
+import { ArrowLeft, BellRing, Copy, Download, IndianRupee, Loader2, MessageCircle, Search, Share2, Users } from 'lucide-react';
 import type { Company, PaymentMethod, Sale, Site } from '@/lib/types';
 import { paymentMethods } from '@/lib/types';
 import { onGlobalCollectionSnapshot, recordCustomerPayment } from '@/context/site-context';
-import { buildStatement, financialYearStart, groupCustomers, type CustomerSummary } from '@/lib/customer-ledger';
+import { buildStatement, financialYearStart, groupCustomers, phoneFromText, reminderMessage, type CustomerSummary } from '@/lib/customer-ledger';
 import { buildStatementPdf, statementFileName } from '@/lib/customer-statement-pdf';
 import { canShareFiles, loadLogo, sharePdf } from '@/lib/pdf-share';
 import { cn, formatCurrency, roundMoney, todayISO } from '@/lib/utils';
@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type Period = 'all' | 'fy' | '90';
@@ -118,11 +119,81 @@ function PaymentDialog({ customer, open, onOpenChange }: { customer: CustomerSum
   );
 }
 
+function ReminderDialog({ customer, company, open, onOpenChange, makePdf }: {
+  customer: CustomerSummary; company?: Company; open: boolean; onOpenChange: (o: boolean) => void;
+  makePdf: () => Promise<{ doc: import('jspdf').jsPDF; name: string }>;
+}) {
+  const { toast } = useToast();
+  const [text, setText] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const phone = phoneFromText(customer.sales.map(s => s.buyerInfo).find(b => phoneFromText(b)) ?? customer.name);
+
+  useEffect(() => {
+    if (open) setText(reminderMessage(customer, company?.name || '', format(new Date(), 'dd MMM yyyy')));
+  }, [open, customer, company?.name]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: 'Message copied', description: 'Paste it into WhatsApp, SMS or email.' });
+    } catch {
+      toast({ variant: 'destructive', title: 'Could not copy', description: 'Select the text and copy it by hand.' });
+    }
+  };
+
+  const share = async () => {
+    setSharing(true);
+    try {
+      const { doc, name } = await makePdf();
+      const result = await sharePdf(doc, name, text);
+      if (result === 'downloaded') {
+        await navigator.clipboard.writeText(text).catch(() => {});
+        toast({ title: 'Statement downloaded', description: 'The message was copied too. Attach the PDF to your message.' });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Could not share', description: 'Try Copy message instead.' });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Payment reminder</DialogTitle>
+          <DialogDescription>
+            A ready-made message for {customer.name}. Edit it if you like, then send it.
+            {phone ? ` WhatsApp opens a chat with ${phone}.` : ' Add their phone number to the buyer name on a sale to open WhatsApp straight to them.'}
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea value={text} onChange={e => setText(e.target.value)} rows={12} className="font-mono text-xs" aria-label="Reminder message" />
+        <DialogFooter className="flex-wrap gap-2 sm:gap-2">
+          <Button variant="outline" onClick={copy}><Copy className="mr-2 h-4 w-4" /> Copy message</Button>
+          <Button variant="outline" asChild>
+            {/* WhatsApp's free click-to-chat link: opens the app or WhatsApp Web with the text filled in. */}
+            <a href={`https://wa.me/${phone ? `91${phone}` : ''}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer">
+              <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
+            </a>
+          </Button>
+          {canShareFiles() && (
+            <Button onClick={share} disabled={sharing}>
+              {sharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />} Share with statement
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CustomerLedger({ customer, sites, company, onBack }: { customer: CustomerSummary; sites: Site[]; company?: Company; onBack: () => void }) {
   const { toast } = useToast();
   const today = todayISO();
   const [period, setPeriod] = useState<Period>('all');
   const [payOpen, setPayOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
 
   const from = period === 'all' ? null : period === 'fy' ? financialYearStart(today) : format(subDays(parseISO(today), 89), 'yyyy-MM-dd');
@@ -178,6 +249,9 @@ function CustomerLedger({ customer, sites, company, onBack }: { customer: Custom
         <div className="flex flex-wrap gap-2">
           {customer.outstanding > 0 && (
             <Button onClick={() => setPayOpen(true)}><IndianRupee className="mr-2 h-4 w-4" /> Record payment</Button>
+          )}
+          {customer.outstanding > 0 && (
+            <Button variant="outline" onClick={() => setReminderOpen(true)}><BellRing className="mr-2 h-4 w-4" /> Send reminder</Button>
           )}
           {canShareFiles() && (
             <Button variant="outline" onClick={share} disabled={!!busy}>
@@ -258,6 +332,13 @@ function CustomerLedger({ customer, sites, company, onBack }: { customer: Custom
       </Card>
 
       <PaymentDialog customer={customer} open={payOpen} onOpenChange={setPayOpen} />
+      <ReminderDialog customer={customer} company={company} open={reminderOpen} onOpenChange={setReminderOpen}
+        makePdf={async () => {
+          // The reminder always attaches the full statement (all time), whatever period is on screen.
+          const full = buildStatement(customer, sites, null, today);
+          const logoDataUrl = await loadLogo(company?.logoUrl);
+          return { doc: buildStatementPdf({ customer, statement: full, companyName: company?.name || '', logoDataUrl }), name: statementFileName(customer, full) };
+        }} />
     </div>
   );
 }

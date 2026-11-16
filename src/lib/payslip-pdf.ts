@@ -25,8 +25,22 @@ export function payslipFileName(labor: Labor, payslip: Payslip): string {
   return `Payslip-${safe}-${payslip.periodFrom.slice(0, 7)}.pdf`;
 }
 
-export function buildPayslipPdf({ payslip, labor, companyName, siteName, logoDataUrl }: PayslipPdfInput): jsPDF {
+export function buildPayslipPdf(input: PayslipPdfInput): jsPDF {
+  return drawPayslip(new jsPDF({ unit: 'mm', format: 'a4' }), input);
+}
+
+/** Several payslips in one PDF, one per page (e.g. every worker on a site for a month). */
+export function buildPayslipsPdf(inputs: PayslipPdfInput[]): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  inputs.forEach((input, i) => {
+    if (i > 0) doc.addPage();
+    drawPayslip(doc, input);
+  });
+  return doc;
+}
+
+/** Draws one payslip starting at the top of the current page. */
+function drawPayslip(doc: jsPDF, { payslip, labor, companyName, siteName, logoDataUrl }: PayslipPdfInput): jsPDF {
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 14;
   const dark: [number, number, number] = [30, 41, 59];

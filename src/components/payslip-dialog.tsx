@@ -9,7 +9,7 @@ import { format, subMonths } from 'date-fns';
 import { Download, FileText, Loader2, Share2 } from 'lucide-react';
 import type { Attendance, Labor, LaborTransaction, WorkLog } from '@/lib/types';
 import { buildPayslip } from '@/lib/payslip';
-import { buildPayslipPdf, payslipFileName } from '@/lib/payslip-pdf';
+import { buildPayslipPdf, buildPayslipsPdf, payslipFileName } from '@/lib/payslip-pdf';
 import { formatCurrency, todayISO } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { canShareFiles as canShare, loadLogo, sharePdf } from '@/lib/pdf-share';
@@ -145,6 +145,93 @@ export function PayslipDialog({ open, onOpenChange, labor, siteName, companyName
           <Button onClick={handleDownload} disabled={!payslip || !!busy}>
             {busy === 'download' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             Download PDF
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Every worker's payslip for one month in a single PDF (one page each), to print or share.
+ * Workers with nothing to show that month (not joined yet, nothing earned, paid or owed) are skipped.
+ */
+export function AllPayslipsDialog({
+  open, onOpenChange, labors, siteName, companyName, logoUrl, attendances, workLogs, transactions,
+}: Omit<PayslipDialogProps, 'labor'> & { labors: Labor[] }) {
+  const { toast } = useToast();
+  const today = todayISO();
+  const months = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => {
+      const d = subMonths(new Date(), i);
+      return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') };
+    }),
+    [],
+  );
+  const [month, setMonth] = useState(months[0].value);
+  const [busy, setBusy] = useState<'download' | 'share' | null>(null);
+
+  useEffect(() => {
+    if (open) setMonth(months[0].value);
+  }, [open, months]);
+
+  const slips = useMemo(() => labors
+    .map(labor => ({ labor, payslip: buildPayslip({ labor, month, today, attendances, workLogs, transactions }) }))
+    .filter(({ payslip: p }) => p.earned > 0 || p.paid > 0 || Math.abs(p.broughtForward) > 0.005)
+    .sort((a, b) => a.labor.name.localeCompare(b.labor.name)),
+  [labors, month, today, attendances, workLogs, transactions]);
+
+  const totals = slips.reduce((t, { payslip: p }) => ({ earned: t.earned + p.earned, paid: t.paid + p.paid, due: t.due + p.closingBalance }), { earned: 0, paid: 0, due: 0 });
+  const monthLabel = months.find(m => m.value === month)?.label ?? month;
+  const fileName = `Payslips-${(siteName || 'site').replace(/[^a-z0-9]+/gi, '-')}-${month}.pdf`;
+
+  const makePdf = async () => {
+    const logoDataUrl = await loadLogo(logoUrl);
+    return buildPayslipsPdf(slips.map(({ labor, payslip }) => ({ payslip, labor, companyName, siteName, logoDataUrl })));
+  };
+
+  const run = async (kind: 'download' | 'share') => {
+    setBusy(kind);
+    try {
+      const doc = await makePdf();
+      if (kind === 'download') doc.save(fileName);
+      else if ((await sharePdf(doc, fileName, `Payslips for ${siteName}, ${monthLabel}`)) === 'downloaded') {
+        toast({ title: 'Downloaded instead', description: "This browser can't share files directly." });
+      }
+    } catch (e) {
+      console.error('Payslips PDF failed', e);
+      toast({ variant: 'destructive', title: 'Could not create the payslips', description: 'Please try again.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> All payslips</DialogTitle>
+          <DialogDescription>One PDF with a page for every worker at {siteName}.</DialogDescription>
+        </DialogHeader>
+        <Select value={month} onValueChange={setMonth}>
+          <SelectTrigger aria-label="Month"><SelectValue /></SelectTrigger>
+          <SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+        </Select>
+        <div className="rounded-lg border p-3">
+          <Row label="Workers included" value={String(slips.length)} />
+          <Row label="Earned this month" value={formatCurrency(totals.earned)} />
+          <Row label="Paid this month" value={formatCurrency(totals.paid)} />
+          <div className="mt-1 border-t pt-1"><Row strong label="Total balance due" value={formatCurrency(totals.due)} /></div>
+          {slips.length === 0 && <p className="pt-2 text-sm text-muted-foreground">No worker earned, was paid or is owed anything in {monthLabel}.</p>}
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          {canShare() && (
+            <Button variant="outline" onClick={() => run('share')} disabled={!slips.length || !!busy}>
+              {busy === 'share' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />} Share
+            </Button>
+          )}
+          <Button onClick={() => run('download')} disabled={!slips.length || !!busy}>
+            {busy === 'download' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />} Download PDF
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Edit, Trash2, Users, Check, X, Minus, ChevronLeft, ChevronRight, Download, IndianRupee, Loader2, Filter, Ruler, LogOut, CheckSquare, Undo2, CreditCard, UserPlus, MoreVertical, Briefcase, User as UserIcon, FileText } from 'lucide-react';
-import { PayslipDialog } from '@/components/payslip-dialog';
+import { AllPayslipsDialog, PayslipDialog } from '@/components/payslip-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteConfirmationDialog } from '../delete-confirmation-dialog';
 import { Separator } from '../ui/separator';
@@ -79,6 +79,7 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [selectedLabor, setSelectedLabor] = useState<Labor | null>(null);
   const [payslipLabor, setPayslipLabor] = useState<Labor | null>(null);
+  const [allPayslipsOpen, setAllPayslipsOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<LaborTransaction | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [attendanceChanges, setAttendanceChanges] = useState<{[laborId: string]: AttendanceStatus}>({});
@@ -521,12 +522,13 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
   return (
     <div className="space-y-6 bg-muted/20 -m-8 p-8">
       <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
               <div>
                   <CardTitle className="text-2xl font-bold">Labor Management</CardTitle>
                   <CardDescription>Track worker payments, balances, and status for this site.</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button variant="outline" onClick={() => setAllPayslipsOpen(true)} disabled={labors.length === 0}><FileText className="mr-2 h-4 w-4" />All Payslips</Button>
                   <Button variant="outline" onClick={() => setIsWorkLogDialogOpen(true)}><Briefcase className="mr-2 h-4 w-4" />Log Work</Button>
                   <Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" /> Add Laborer</Button>
               </div>
@@ -1068,6 +1070,17 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
         onConfirm={handleDeleteTransactionConfirm}
         title="Delete Transaction"
         description={`Are you sure you want to delete this transaction? This action cannot be undone.`}
+      />
+      <AllPayslipsDialog
+        open={allPayslipsOpen}
+        onOpenChange={setAllPayslipsOpen}
+        labors={labors}
+        siteName={site.name}
+        companyName={company?.name || ''}
+        logoUrl={company?.logoUrl}
+        attendances={allAttendances}
+        workLogs={workLogs}
+        transactions={transactions}
       />
       <PayslipDialog
         open={!!payslipLabor}

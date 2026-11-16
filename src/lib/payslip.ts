@@ -5,11 +5,11 @@
  * month always ends on the balance the app shows:
  *  - Daily:    each day from joining counts as Present unless attendance says otherwise
  *              (Half-day = 0.5, Absent/Unmarked = 0); future days count nothing.
- *  - Monthly:  months are counted from the joining date, the running month included.
+ *  - Monthly:  pro-rated by calendar days (joining month and running month count in part).
  *  - Contract: the work logged.
  * Pure functions only, so they can be tested without a database.
  */
-import { addDays, differenceInMonths, endOfMonth, format, isValid, parseISO, startOfMonth } from 'date-fns';
+import { addDays, differenceInCalendarDays, endOfMonth, format, getDaysInMonth, isValid, parseISO, startOfMonth } from 'date-fns';
 import type { Attendance, Labor, LaborTransaction, WorkLog } from '@/lib/types';
 import { roundMoney } from '@/lib/utils';
 
@@ -41,6 +41,26 @@ export interface Payslip {
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 
 /** Wages earned from joining up to and including `upTo` (yyyy-MM-dd), capped at `today`. */
+/**
+ * Monthly salary earned from joining up to and including `upTo` (both yyyy-MM-dd),
+ * pro-rated by calendar days: each month pays wage x (days worked in it / days in it).
+ * Full months pay the full wage; the joining month and the running month pay part.
+ */
+export function monthlyWageEarned(wage: number, joiningDate: string, upTo: string): number {
+  const joining = parseISO(joiningDate);
+  const last = parseISO(upTo);
+  if (!isValid(joining) || !isValid(last) || !(wage > 0) || joiningDate > upTo) return 0;
+  let total = 0;
+  for (let month = startOfMonth(joining); month <= last; month = startOfMonth(addDays(endOfMonth(month), 1))) {
+    const from = month < joining ? joining : month;
+    const end = endOfMonth(month);
+    const to = end > last ? last : end;
+    const days = differenceInCalendarDays(to, from) + 1;
+    total += (wage * days) / getDaysInMonth(month);
+  }
+  return Math.round(total * 100) / 100;
+}
+
 export function earnedUpTo(
   labor: Labor,
   upTo: string,
@@ -57,7 +77,7 @@ export function earnedUpTo(
   if (!joining || !isValid(joining) || !labor.wage || labor.dateOfJoining! > last) return 0;
 
   if (labor.wageType === 'Monthly') {
-    return (differenceInMonths(parseISO(last), joining) + 1) * labor.wage;
+    return monthlyWageEarned(labor.wage, labor.dateOfJoining!, last);
   }
   // Daily
   let total = 0;

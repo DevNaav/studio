@@ -27,11 +27,12 @@ import { CompleteSiteDialog } from './complete-site-dialog';
 import { RentedMaterialsTab } from './tabs/rented-materials-tab';
 import { PaymentTab } from './tabs/payment-tab';
 import { ToolsTab } from './tabs/tools-tab';
-import { format, isBefore, eachDayOfInterval, isValid, isAfter, differenceInDays, differenceInMonths } from 'date-fns';
+import { format, isBefore, eachDayOfInterval, isValid, isAfter, differenceInDays } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { Separator } from './ui/separator';
 import { sumDirectExpenses } from '@/lib/costs';
 import { effectivePlan } from '@/lib/plans';
+import { monthlyWageEarned } from '@/lib/payslip';
 
 interface SiteDetailsProps {
   site: Site;
@@ -108,8 +109,8 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
             totalWages = workLogs.filter(log => log.laborerId === labor.id && !log.isDeleted).reduce((sum, log) => sum + log.wageEarned, 0);
             daysWorked = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).length;
         } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate) && !isAfter(joiningDate, today)) {
-            const monthsWorked = differenceInMonths(today, joiningDate) + 1;
-            totalWages = monthsWorked * labor.wage; // Include current month
+            // Pro-rated by calendar days (shared with payslips, src/lib/payslip.ts).
+            totalWages = monthlyWageEarned(labor.wage, labor.dateOfJoining!, format(today, 'yyyy-MM-dd'));
             daysWorked = differenceInDays(today, joiningDate);
         } else if (labor.wageType === 'Daily' && joiningDate && labor.wage) {
             // Someone joining in the future has earned nothing yet.

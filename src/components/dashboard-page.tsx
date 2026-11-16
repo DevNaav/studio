@@ -15,7 +15,7 @@ import { Progress } from './ui/progress';
 import { WarehouseSummaryCard } from './warehouse-summary-card';
 import { OnboardingFlow } from './onboarding-flow';
 import { formatCurrency } from '@/lib/utils';
-import { format, isAfter, eachDayOfInterval, isBefore, isValid, differenceInDays, differenceInMonths } from 'date-fns';
+import { format, isAfter, eachDayOfInterval, isBefore, isValid, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 import { saleProfit, sumDirectExpenses } from '@/lib/costs';

@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DeleteConfirmationDialog } from '../delete-confirmation-dialog';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDate, getDaysInMonth, isSameMonth, isBefore, isValid, isAfter, differenceInDays, differenceInMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDate, getDaysInMonth, isSameMonth, isBefore, isValid, isAfter, differenceInDays } from 'date-fns';
 import Papa from 'papaparse';
 import { onSubCollectionSnapshot, addDocWithSiteId, updateDocWithId, softDeleteDocWithId, getSubCollection, addDocToGlobalCollection, onGlobalCollectionSnapshot, deleteDocWithId, markAttendance } from '@/context/site-context';
 import { AddLaborTransactionDialog } from '../add-labor-transaction-dialog';
@@ -36,6 +36,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { logActivity } from '@/lib/activity-log';
+import { monthlyWageEarned } from '@/lib/payslip';
 
 
 const formSchema = z.object({
@@ -155,8 +156,8 @@ export function LaborTab({ site, wageSummary: initialWageSummary, company }: Lab
             totalWages = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).reduce((sum, log) => sum + log.wageEarned, 0);
             daysWorked = workLogs.filter(wl => wl.laborerId === labor.id && !wl.isDeleted).length;
         } else if (labor.wageType === 'Monthly' && labor.wage && joiningDate && isValid(joiningDate) && !isAfter(joiningDate, today)) {
-            const monthsWorked = differenceInMonths(today, joiningDate) + 1;
-            totalWages = monthsWorked * labor.wage; // Include current month
+            // Pro-rated by calendar days (shared with payslips, src/lib/payslip.ts).
+            totalWages = monthlyWageEarned(labor.wage, labor.dateOfJoining!, format(today, 'yyyy-MM-dd'));
             daysWorked = differenceInDays(today, joiningDate);
         } else if (labor.wageType === 'Daily' && joiningDate && labor.wage) {
             // Someone joining in the future has earned nothing yet.

@@ -90,7 +90,24 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
     const [allAttendances, setAllAttendances] = useState<Attendance[]>([]);
     const [allWorkLogs, setAllWorkLogs] = useState<WorkLog[]>([]);
     const [showMascot, setShowMascot] = useState(true);
-    const today = new Date();
+    // The 3D mascot and site view are heavy (three.js + a 1.2 MB model). Load them once the
+    // page is idle so the numbers show first, and skip the mascot on phones, where it is hidden.
+    const [load3d, setLoad3d] = useState(false);
+    const [wideScreen, setWideScreen] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(min-width: 640px)');
+        const onChange = () => setWideScreen(mq.matches);
+        onChange();
+        mq.addEventListener('change', onChange);
+        const w = window as any;
+        const id = w.requestIdleCallback ? w.requestIdleCallback(() => setLoad3d(true), { timeout: 2500 }) : window.setTimeout(() => setLoad3d(true), 1200);
+        return () => {
+            mq.removeEventListener('change', onChange);
+            if (w.cancelIdleCallback) w.cancelIdleCallback(id); else window.clearTimeout(id);
+        };
+    }, []);
+    // Stable for the visit: a fresh Date each render made the cost totals below recalculate on every render.
+    const today = useMemo(() => new Date(), []);
 
 
     const currentCompany = useMemo(() => allCompanies.find(c => c.id === companyId), [allCompanies, companyId]);
@@ -263,7 +280,7 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
                 </div>
               )}
               <div className="relative h-full w-full cursor-grab active:cursor-grabbing">
-                <HumanCharacter />
+                {load3d && wideScreen ? <HumanCharacter /> : <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}
               </div>
             </div>
           )}
@@ -373,7 +390,7 @@ export function DashboardPage({ sites, manufacturingUnits, companyId, setActiveV
                     <CardDescription className="text-xs">Drag to look around the structure.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex h-48 items-center justify-center bg-muted/40 p-0">
-                    <InteractiveBlueprint siteId={activeSite?.id || 'default'} siteName={activeSite?.name || 'Default Site'} />
+                    {load3d ? <InteractiveBlueprint siteId={activeSite?.id || 'default'} siteName={activeSite?.name || 'Default Site'} /> : <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />}
                 </CardContent>
             </Card>
             <GeneralExpenseChart />

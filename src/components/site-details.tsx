@@ -69,7 +69,8 @@ export function SiteDetails({ site, companyId, company }: SiteDetailsProps) {
   const [sales, setSales] = useState<Sale[]>([]);
   const [tools, setTools] = useState<Tool[]>([]);
 
-  const today = new Date();
+  // Stable for the visit, so the wage and cost totals are not recalculated on every render.
+  const today = useMemo(() => new Date(), []);
 
   useEffect(() => {
     if (!site?.id || !site?.companyId) return;

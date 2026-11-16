@@ -4,6 +4,7 @@
  */
 import { differenceInCalendarDays, parseISO, isValid } from 'date-fns';
 import { summariseMaterials } from '@/lib/materials';
+import { normaliseName } from '@/lib/customer-ledger';
 import type {
   DefectLiability, Document, EmiPayment, InventoryItem, Machine, RentedMaterial, Sale, Site, Task, Warranty,
 } from '@/lib/types';
@@ -141,7 +142,7 @@ export function computeAlerts(input: AlertInputs): AppAlert[] {
       const due = (s.salePrice || 0) - (s.amountPaid || 0);
       if (age === null || -age < ALERT_RULES.unpaidSaleDays || due <= 0.5) return;
       const buyer = s.destinationSiteId ? (siteName.get(s.destinationSiteId) ?? 'another site') : (s.buyerInfo?.trim() || 'External buyers');
-      const key = `${s.siteId}|${buyer.toLowerCase()}`;
+      const key = `${s.siteId}|${normaliseName(buyer)}`; // same buyer matching as the Customers page
       const entry = unpaid.get(key) ?? { siteId: s.siteId, buyer, count: 0, due: 0, oldest: 0 };
       entry.count += 1;
       entry.due += due;

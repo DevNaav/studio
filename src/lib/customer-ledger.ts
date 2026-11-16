@@ -40,7 +40,28 @@ export interface CustomerStatement {
   closingBalance: number;
 }
 
-export const normaliseName = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
+/**
+ * Removes a mobile number typed with a buyer's name ("Sharma 98765 43210",
+ * "Gill (ph +91-98765-43210)") plus leftover brackets and "ph"/"mob" labels.
+ */
+function stripPhone(text: string): string {
+  return text
+    .replace(/(?:\+?91[\s-]*)?\b0?[6-9](?:[\s-]*\d){9}\b/g, ' ')
+    .replace(/\(\s*(?:ph|mob|mobile|phone|contact)?\.?\s*\)/gi, ' ')
+    .replace(/\b(?:ph|mob|mobile|phone|contact)\.?\s*$/i, ' ')
+    .replace(/[\s(),:-]+$/g, '')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/** Buyer name for matching: ignores case, extra spaces and any phone number typed with it. */
+export const normaliseName = (name: string) => stripPhone(name).toLowerCase();
+
+/** The buyer text as written, minus any phone number, for showing on screen. */
+function displayBuyer(text: string | undefined): string {
+  if (!text) return '';
+  return stripPhone(text) || text.trim();
+}
 
 export function customerKey(sale: Sale): string {
   if (sale.destinationSiteId) return `site:${sale.destinationSiteId}`;
@@ -57,7 +78,7 @@ export function groupCustomers(sales: Sale[], sites: Site[], today: string): Cus
     const internal = !!sale.destinationSiteId;
     const displayName = internal
       ? siteName.get(sale.destinationSiteId!) ?? 'Deleted site'
-      : (sale.buyerInfo?.trim().replace(/\s+/g, ' ') || 'Buyer not named');
+      : (displayBuyer(sale.buyerInfo) || 'Buyer not named');
     const g = groups.get(key) ?? {
       key, name: displayName, internal, sales: [], billed: 0, received: 0, outstanding: 0, lastActivity: '', oldestUnpaidDays: null,
     };

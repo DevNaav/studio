@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    name: Type-check and build
+    name: Type-check, test and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -36,6 +36,10 @@ jobs:
 
       - name: Type-check
         run: npm run typecheck
+
+      # Money maths (wages, payslips, site totals, stock, customer ledger, alerts, plans).
+      - name: Unit tests
+        run: npm test
 
       - name: Build
         run: npm run build

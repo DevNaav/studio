@@ -7,9 +7,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test": "vitest run"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.21.0",
@@ -79,7 +80,8 @@
     "@types/uuid": "^9.0.8",
     "postcss": "^8.5.32",
     "tailwindcss": "^3.4.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^4.1.12"
   },
   "overrides": {
     "@grpc/grpc-js": "^1.14.7",

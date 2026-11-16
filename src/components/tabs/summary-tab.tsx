@@ -15,6 +15,7 @@ import { format, isAfter, eachDayOfInterval, differenceInDays } from 'date-fns';
 import { useAuth } from '@/context/auth-context';
 import { formatCurrency } from '@/lib/utils';
 import { computeSiteSpend } from '@/lib/costs';
+import { DailyReportDialog } from '@/components/daily-report-dialog';
 import { Loader2 } from 'lucide-react';
 
 interface SummaryTabProps {
@@ -310,15 +311,18 @@ export function SummaryTab({ site, totalLaborWages, wageSummary }: SummaryTabPro
 
   return (
     <Card className="border-0 shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <div>
             <CardTitle>Site Summary</CardTitle>
             <CardDescription>An overview of this site's metrics (active items only).</CardDescription>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <DailyReportDialog site={site} />
         <Button onClick={handleExportPDF} variant="outline" size="sm" disabled={loading}>
             <Download className="mr-2 h-4 w-4" />
             Export Full PDF Report
         </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

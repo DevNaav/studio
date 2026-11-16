@@ -44,3 +44,6 @@ pnpm-debug.log*
 # Local build scratch and TypeScript cache
 /tmp/
 *.tsbuildinfo
+
+# Firebase emulator logs
+*-debug.log

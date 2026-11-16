@@ -408,7 +408,7 @@ function AppClientContent() {
         case 'dashboard': return 'Dashboard';
         case 'sites': return selectedSite?.name || 'Dashboard';
         case 'machines': return 'Machines';
-        case 'labor': return 'Labour';
+        case 'labor': return 'Labor';
         case 'documents': return 'Documents';
         case 'users': return 'Team & roles';
         case 'assistant': return 'AI Assistant';
@@ -424,7 +424,7 @@ function AppClientContent() {
         case 'manufacturing': return 'Manufacturing';
         case 'threat-modeler': return 'Threat modeler';
         case 'defect-liability': return 'Defect liability';
-        case 'warranty-tracker': return 'Warranties';
+        case 'warranty-tracker': return 'Warranty tracker';
         case 'customers': return 'Customers';
         case 'activity-log': return 'Activity log';
         case 'landing-page-editor': return 'Landing Page Editor';

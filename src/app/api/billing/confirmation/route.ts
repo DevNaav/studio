@@ -50,13 +50,37 @@ export async function POST(request: Request) {
   }
   if (!email) return NextResponse.json({ error: 'Your account has no email address.' }, { status: 400 });
 
-  const { paymentId } = await request.json().catch(() => ({}));
-  if (typeof paymentId !== 'string' || !/^[A-Za-z0-9]{10,40}$/.test(paymentId)) {
-    return NextResponse.json({ error: 'Invalid payment.' }, { status: 400 });
-  }
+  const body = await request.json().catch(() => ({}));
 
   if (!isMailConfigured()) {
     return NextResponse.json({ sent: false, reason: 'not-configured' });
+  }
+
+  // Test mode: a sample email to the signed-in person's own address, to check the setup.
+  if (body?.test === true) {
+    const key = `test:${email}`;
+    if ((sentCount.get(key) ?? 0) >= 5) return NextResponse.json({ error: 'Too many test emails. Try again later.' }, { status: 429 });
+    try {
+      await sendMail({
+        to: email,
+        subject: 'Inventra test email',
+        text: `This is a test from Inventra. If you can read this, purchase confirmation emails are working.
+
+${SELLER.name}`,
+        html: `<div style="font-family:Arial,sans-serif;color:#1e293b"><h3>Email is working</h3><p>This is a test from Inventra. If you can read this, purchase confirmation emails (with the invoice attached) will reach your customers.</p><p>${esc(SELLER.name)}</p></div>`,
+      });
+    } catch (error: any) {
+      console.error('Test email failed', error);
+      const auth = /auth|login|credential|535|534/i.test(String(error?.message ?? error) + String(error?.responseCode ?? ''));
+      return NextResponse.json({ error: auth ? 'The email server rejected the login. Check SMTP_USER and SMTP_PASS (use a Gmail app password).' : 'Could not send the test email. Check the SMTP settings.' }, { status: 502 });
+    }
+    sentCount.set(key, (sentCount.get(key) ?? 0) + 1);
+    return NextResponse.json({ sent: true, to: email });
+  }
+
+  const paymentId = body?.paymentId;
+  if (typeof paymentId !== 'string' || !/^[A-Za-z0-9]{10,40}$/.test(paymentId)) {
+    return NextResponse.json({ error: 'Invalid payment.' }, { status: 400 });
   }
   if ((sentCount.get(paymentId) ?? 0) >= 3) {
     return NextResponse.json({ error: 'This confirmation was already sent.' }, { status: 429 });

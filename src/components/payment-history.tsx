@@ -15,6 +15,7 @@ import type jsPDF from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { formatCurrency } from '@/lib/utils';
 import { planById } from '@/lib/plans';
+import { getIdTokenOrThrow } from '@/lib/id-token';
 
 interface PaymentHistoryProps {
   companyId: string;
@@ -56,6 +57,28 @@ export function PaymentHistory({ companyId }: PaymentHistoryProps) {
     };
   }, [companyId]);
 
+  const [emailing, setEmailing] = useState<string | null>(null);
+
+  /** Emails an invoice (or, with null, a test message) to the signed-in user's own address. */
+  const emailInvoice = async (payment: Payment | null) => {
+    setEmailing(payment?.id ?? 'test');
+    try {
+      const res = await fetch('/api/billing/confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await getIdTokenOrThrow()}` },
+        body: JSON.stringify(payment ? { paymentId: payment.id } : { test: true }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (result.sent) toast({ title: 'Email sent', description: `Sent to ${result.to}. Check the inbox (and spam folder).` });
+      else if (result.reason === 'not-configured') toast({ variant: 'destructive', title: 'Email is not set up', description: 'Add the SMTP settings in Vercel and redeploy.' });
+      else toast({ variant: 'destructive', title: 'Email not sent', description: result.error || 'Please try again.' });
+    } catch {
+      toast({ variant: 'destructive', title: 'Email not sent', description: 'Please check your connection and try again.' });
+    } finally {
+      setEmailing(null);
+    }
+  };
+
   const handleDownloadInvoice = async (payment: Payment) => {
     const { buildInvoicePdf, makeInvoiceNumber } = await import('@/lib/invoice-pdf');
     const invoiceNumber = payment.invoiceNumber || makeInvoiceNumber(payment.id, new Date(payment.paymentDate));
@@ -72,9 +95,14 @@ export function PaymentHistory({ companyId }: PaymentHistoryProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><CreditCard /> Payment History</CardTitle>
-        <CardDescription>View and download invoices for all your past payments.</CardDescription>
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="flex items-center gap-2"><CreditCard /> Payment History</CardTitle>
+          <CardDescription>View, download or email invoices for all your past payments.</CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => emailInvoice(null)} disabled={!!emailing}>
+          {emailing === 'test' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Email me a test
+        </Button>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -103,6 +131,9 @@ export function PaymentHistory({ companyId }: PaymentHistoryProps) {
                       <Button variant="outline" size="sm" onClick={() => handleDownloadInvoice(payment)}>
                         <Download className="mr-2 h-4 w-4" />
                         Download Invoice
+                      </Button>
+                      <Button variant="ghost" size="sm" className="ml-2" onClick={() => emailInvoice(payment)} disabled={!!emailing}>
+                        {emailing === payment.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Email
                       </Button>
                     </TableCell>
                   </TableRow>
